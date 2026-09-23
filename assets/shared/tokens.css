@@ -1,0 +1,8 @@
+/* Shared design tokens (single source for admin + public UI). */
+:root {
+  --wpsd-brand-500: #2271b1;
+  --wpsd-brand-700: #135e96;
+  --wpsd-radius: 6px;
+  --wpsd-spacing: 8px;
+  --wpsd-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}

@@ -1,0 +1,393 @@
+openapi: 3.0.3
+info:
+  title: Affiniti WP Support (wpsd/v1)
+  version: 1.0.0
+  description: >
+    Product service/complaint tickets. Shared by the React admin + public UIs
+    and external integrators. Envelope: {success, data, error} with correct
+    HTTP codes (400/401/403/404/409/429/500).
+servers:
+  - url: https://example.com/wp-json/wpsd/v1
+security: []
+paths:
+  /tickets:
+    post:
+      summary: Create ticket (web, public UI, external — identical validation)
+      security:
+        - ApiKey: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    get:
+      summary: List/search tickets (staff, or full-scope API clients)
+      security:
+        - ApiKey: []
+          WpNonce: []
+      parameters:
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/DistrictId'
+        - $ref: '#/components/parameters/ServiceCenterId'
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/AssignedAgentId'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Paginated list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /tickets/by-id/{id}:
+    get:
+      summary: Fetch single ticket by numeric id with full thread (staff only)
+      security:
+        - WpNonce: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Ticket + replies (incl. internal) + attachments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '404': { $ref: '#/components/responses/Error' }
+  /tickets/{ticket_number}:
+    get:
+      summary: Fetch single ticket (ownership-checked for guests)
+      parameters:
+        - name: ticket_number
+          in: path
+          required: true
+          schema: { type: string, example: TKT-2026-00123 }
+        - name: mobile
+          in: query
+          required: false
+          description: Required for guests (must match the ticket's mobile).
+          schema: { type: string }
+      responses:
+        '200':
+          description: Ticket + replies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /tickets/{id}/replies:
+    post:
+      summary: Add reply/internal note (staff only, V1)
+      security:
+        - WpNonce: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, maxLength: 5000 }
+                is_internal_note: { type: boolean }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /tickets/{id}:
+    patch:
+      summary: Update ticket (staff only; never API clients in V1) — status/priority/assignment plus editable customer, location, and product fields
+      security:
+        - WpNonce: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [new, assigned, in_progress, resolved, closed, cancelled] }
+                priority: { type: string, enum: [low, med, high] }
+                assigned_agent_id: { type: integer, nullable: true }
+                customer_name: { type: string, minLength: 2, maxLength: 150 }
+                mobile: { type: string }
+                alternative_mobile: { type: string }
+                address: { type: string, maxLength: 50 }
+                barcode: { type: string, maxLength: 120 }
+                comments: { type: string, maxLength: 2000 }
+                district_id: { type: integer, description: Location ids must be sent as a complete set of four }
+                thana_id: { type: integer }
+                route_id: { type: integer }
+                service_center_id: { type: integer }
+                product_id: { type: integer, description: Must be sent together with problem_type_id }
+                problem_type_id: { type: integer }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Delete ticket (wpsd_delete_tickets cap only)
+      security:
+        - WpNonce: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: Deleted, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+  /tickets/{id}/attachments:
+    post:
+      summary: Upload attachment (staff only; JPG/PNG/WEBP/PDF ≤ 5MB)
+      security:
+        - WpNonce: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { description: Stored, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+  /lookups/districts:
+    get:
+      summary: List districts (public, cached)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+  /lookups/thanas:
+    get:
+      summary: Thanas by district (public, cached)
+      parameters:
+        - name: district_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+  /lookups/routes:
+    get:
+      summary: Routes by thana (public, cached)
+      parameters:
+        - name: thana_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+  /lookups/service-centers:
+    get:
+      summary: Service centers by route — filtered list, 1:many supported (public, cached)
+      parameters:
+        - name: route_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+  /lookups/products:
+    get:
+      summary: Products (+brands); optional brand filter (public, cached)
+      parameters:
+        - name: brand
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+  /lookups/problem-types:
+    get:
+      summary: Problem types (category-specific + global fallback) (public, cached)
+      parameters:
+        - name: product_id
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+  /admin/lookups/{type}:
+    get:
+      summary: List lookup rows (staff)
+      security: [WpNonce: []]
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string, enum: [districts, thanas, routes, service-centers, products, problem-types] }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+    post:
+      summary: Create lookup row (staff)
+      security: [WpNonce: []]
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+  /admin/lookups/{type}/{id}:
+    put:
+      summary: Update lookup row (staff)
+      security: [WpNonce: []]
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+    delete:
+      summary: Delete lookup row (staff; 409 when used by tickets)
+      security: [WpNonce: []]
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+        '409': { $ref: '#/components/responses/Error' }
+  /admin/api-clients:
+    get:
+      summary: List API clients, secrets never returned (staff)
+      security: [WpNonce: []]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+    post:
+      summary: Create client; secret returned once (staff)
+      security: [WpNonce: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_name]
+              properties:
+                client_name: { type: string }
+                scope: { type: string, enum: [create_only, create_and_read, full], default: create_only }
+                rate_limit_per_minute: { type: integer, default: 60 }
+                allowed_ips: { type: string }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+  /admin/api-clients/{id}:
+    delete:
+      summary: Revoke client (staff)
+      security: [WpNonce: []]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+    post:
+      summary: Rotate keypair, secret returned once (staff)
+      security: [WpNonce: []]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [rotate] }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+  /admin/stats:
+    get:
+      summary: Dashboard stats, 5-minute cache (staff)
+      security: [WpNonce: []]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-WPSD-API-Key
+      description: >
+        External consumers send X-WPSD-API-Key + X-WPSD-API-Secret, plus
+        optional X-WPSD-Timestamp / X-WPSD-Signature (HMAC-SHA256 of
+        timestamp + "." + raw body). HTTPS required in production.
+    WpNonce:
+      type: apiKey
+      in: header
+      name: X-WP-Nonce
+      description: Logged-in staff (wp_create_nonce('wp_rest')).
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: integer } }
+    Status: { name: status, in: query, required: false, schema: { type: string } }
+    DistrictId: { name: district_id, in: query, required: false, schema: { type: integer } }
+    ServiceCenterId: { name: service_center_id, in: query, required: false, schema: { type: integer } }
+    ProductId: { name: product_id, in: query, required: false, schema: { type: integer } }
+    AssignedAgentId: { name: assigned_agent_id, in: query, required: false, schema: { type: integer } }
+    Search: { name: search, in: query, required: false, schema: { type: string } }
+    Page: { name: page, in: query, required: false, schema: { type: integer, default: 1 } }
+    PerPage: { name: per_page, in: query, required: false, schema: { type: integer, default: 20, maximum: 100 } }
+  schemas:
+    Envelope:
+      type: object
+      required: [success, data, error]
+      properties:
+        success: { type: boolean }
+        data: { type: object, nullable: true }
+        error:
+          type: object
+          nullable: true
+          properties:
+            code: { type: string }
+            message: { type: string }
+    TicketCreate:
+      type: object
+      required: [customer_name, mobile, district_id, thana_id, route_id, service_center_id, address, product_id, problem_type_id]
+      properties:
+        customer_name: { type: string, minLength: 2, maxLength: 150 }
+        mobile: { type: string, example: '01712345678', description: BD number; +880 form accepted and normalized }
+        alternative_mobile: { type: string }
+        district_id: { type: integer }
+        thana_id: { type: integer }
+        route_id: { type: integer }
+        service_center_id: { type: integer }
+        address: { type: string, maxLength: 50 }
+        product_id: { type: integer }
+        barcode: { type: string, maxLength: 120 }
+        problem_type_id: { type: integer }
+        comments: { type: string, maxLength: 2000 }
+        wpsd_nonce: { type: string, description: Required for guest web submissions (action wpsd_public_form) }
+  responses:
+    Error:
+      description: Envelope with success=false and HTTP error code
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'

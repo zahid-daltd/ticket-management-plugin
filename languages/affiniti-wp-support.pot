@@ -1,0 +1,369 @@
+# Translation Template for Affiniti WP Support
+msgid ""
+msgstr ""
+"Project-Id-Version: Affiniti WP Support 1.0.0\n"
+"Report-Msgid-Bugs-To: https://dataaffiniti.com/\n"
+"POT-Creation-Date: 2026-09-23 00:00+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Domain: affiniti-wp-support\n"
+
+msgid "Support Agent"
+msgstr ""
+
+msgid "Support Desk"
+msgstr ""
+
+msgid "All Tickets"
+msgstr ""
+
+msgid "Import / Settings"
+msgstr ""
+
+msgid "You do not have permission to view tickets."
+msgstr ""
+
+msgid "The ticket dashboard needs JavaScript. Summary (cached 5 minutes):"
+msgstr ""
+
+msgid "Total tickets:"
+msgstr ""
+
+msgid "You do not have permission to manage settings."
+msgstr ""
+
+msgid "Settings saved."
+msgstr ""
+
+msgid "Public submissions per IP / hour"
+msgstr ""
+
+msgid "Public submissions per mobile / hour"
+msgstr ""
+
+msgid "On uninstall"
+msgstr ""
+
+msgid "Delete all ticket data and tables (requires confirmation on the uninstall screen)."
+msgstr ""
+
+msgid "Save settings"
+msgstr ""
+
+msgid "CSV import (lookup tables)"
+msgstr ""
+
+msgid "Upload a CSV with a header row matching the sample files in includes/data/. Existing rows are kept; the importer only adds new rows."
+msgstr ""
+
+msgid "Table"
+msgstr ""
+
+msgid "CSV file"
+msgstr ""
+
+msgid "Import CSV"
+msgstr ""
+
+msgid "API clients"
+msgstr ""
+
+msgid "Create, rotate, and revoke keys from the Support Desk app (API Clients tab). Secrets are stored hashed and shown once."
+msgstr ""
+
+msgid "Invalid table selected."
+msgstr ""
+
+msgid "Please choose a CSV file."
+msgstr ""
+
+msgid "Only .csv files are accepted."
+msgstr ""
+
+msgid "Imported %d rows into %s."
+msgstr ""
+
+msgid "New ticket %s"
+msgstr ""
+
+msgid "Ticket %s assigned to you"
+msgstr ""
+
+msgid "Ticket %s has been assigned to you."
+msgstr ""
+
+msgid "Your service request %s has been received. We will contact you shortly."
+msgstr ""
+
+msgid "Your service request %1$s status is now: %2$s."
+msgstr ""
+
+msgid "Ticket created."
+msgstr ""
+
+msgid "Updated by staff: %s"
+msgstr ""
+
+msgid "Mobile number must be a valid Bangladeshi number (e.g. 01712345678)."
+msgstr ""
+
+msgid "Name must be between 2 and 150 characters."
+msgstr ""
+
+msgid "This field is required."
+msgstr ""
+
+msgid "Address is required."
+msgstr ""
+
+msgid "Address must be 50 characters or fewer."
+msgstr ""
+
+msgid "Barcode must be 120 characters or fewer."
+msgstr ""
+
+msgid "Comments must be 2000 characters or fewer."
+msgstr ""
+
+msgid "Validation failed."
+msgstr ""
+
+msgid "Thana does not belong to the selected district."
+msgstr ""
+
+msgid "Route does not belong to the selected thana."
+msgstr ""
+
+msgid "Service center does not serve the selected route."
+msgstr ""
+
+msgid "Selected product is invalid."
+msgstr ""
+
+msgid "Selected problem type is invalid."
+msgstr ""
+
+msgid "Selected problem type does not apply to this product."
+msgstr ""
+
+msgid "Invalid status."
+msgstr ""
+
+msgid "Invalid priority."
+msgstr ""
+
+msgid "Assignee must be a support agent or administrator."
+msgstr ""
+
+msgid "Nothing to update."
+msgstr ""
+
+msgid "Message is required."
+msgstr ""
+
+msgid "Message must be 5000 characters or fewer."
+msgstr ""
+
+msgid "Too many requests. Please slow down and try again shortly."
+msgstr ""
+
+msgid "API key and secret are both required."
+msgstr ""
+
+msgid "HTTPS is required for API access."
+msgstr ""
+
+msgid "Invalid API credentials."
+msgstr ""
+
+msgid "Your IP is not allowed for this API client."
+msgstr ""
+
+msgid "Timestamp and signature must be sent together."
+msgstr ""
+
+msgid "Request timestamp is invalid or expired."
+msgstr ""
+
+msgid "Invalid request signature."
+msgstr ""
+
+msgid "Unsupported lookup table."
+msgstr ""
+
+msgid "CSV file not found or not readable."
+msgstr ""
+
+msgid "Could not open CSV file."
+msgstr ""
+
+msgid "CSV is empty or invalid."
+msgstr ""
+
+msgid "Could not create the ticket. Please try again."
+msgstr ""
+
+msgid "A similar request (%s) was submitted recently from this number. Please wait before submitting again."
+msgstr ""
+
+msgid "Ticket not found."
+msgstr ""
+
+msgid "Could not update the ticket."
+msgstr ""
+
+msgid "Could not add the reply."
+msgstr ""
+
+msgid "Name is required."
+msgstr ""
+
+msgid "district_id is required."
+msgstr ""
+
+msgid "thana_id is required."
+msgstr ""
+
+msgid "route_id is required."
+msgstr ""
+
+msgid "Brand, model name, and category are required."
+msgstr ""
+
+msgid "Label is required."
+msgstr ""
+
+msgid "Could not create the record."
+msgstr ""
+
+msgid "This record is used by tickets and cannot be deleted."
+msgstr ""
+
+msgid "Client name is required."
+msgstr ""
+
+msgid "Could not create the API client."
+msgstr ""
+
+msgid "Copy the secret now. It cannot be retrieved again — rotate to replace it."
+msgstr ""
+
+msgid "Copy the secret now. It cannot be retrieved again."
+msgstr ""
+
+msgid "Unknown action. Use {\"action\":\"rotate\"}."
+msgstr ""
+
+msgid "Authentication required."
+msgstr ""
+
+msgid "Your API scope does not allow listing tickets."
+msgstr ""
+
+msgid "Your API scope does not allow reading tickets."
+msgstr ""
+
+msgid "You do not have permission to perform this action."
+msgstr ""
+
+msgid "You do not have permission to delete tickets."
+msgstr ""
+
+msgid "You do not have permission to view statistics."
+msgstr ""
+
+msgid "You cannot assign tickets."
+msgstr ""
+
+msgid "Security check failed. Please reload the form and try again."
+msgstr ""
+
+msgid "Provide the mobile number used on this ticket to view it."
+msgstr ""
+
+msgid "Ticket not found or mobile does not match."
+msgstr ""
+
+msgid "Invalid status filter."
+msgstr ""
+
+msgid "district_id is required."
+msgstr ""
+
+msgid "thana_id is required."
+msgstr ""
+
+msgid "route_id is required."
+msgstr ""
+
+msgid "No file was uploaded."
+msgstr ""
+
+msgid "File upload failed."
+msgstr ""
+
+msgid "File is too large (max 5MB)."
+msgstr ""
+
+msgid "File type not allowed. Use JPG, PNG, WEBP, or PDF."
+msgstr ""
+
+msgid "File type not allowed."
+msgstr ""
+
+msgid "Upload directory is not available."
+msgstr ""
+
+msgid "Could not store the uploaded file."
+msgstr ""
+
+msgid "Could not record the attachment."
+msgstr ""
+
+msgid "Attach a file using the \"file\" field."
+msgstr ""
+
+msgid "An error occurred."
+msgstr ""
+
+msgid "Loading service request form…"
+msgstr ""
+
+msgid "The service request form needs JavaScript. Please enable JavaScript, or contact support by phone."
+msgstr ""
+
+msgid "Contact support"
+msgstr ""
+
+msgid "Ticket lookup needs JavaScript."
+msgstr ""
+
+msgid "Loading ticket lookup…"
+msgstr ""
+
+msgid "Affiniti WP Support requires WordPress 6.4+ and PHP 8.0+. The plugin is inactive until requirements are met."
+msgstr ""
+
+msgid "Tickets"
+msgstr ""
+
+msgid "Location must be updated as a complete District / Thana / Route / Service Center set."
+msgstr ""
+
+msgid "Product and problem type must be updated together."
+msgstr ""
+
+msgid "No permission."
+msgstr ""
+
+msgid "Total:"
+msgstr ""
+
+msgid "Avg resolution (hrs):"
+msgstr ""
+
+msgid "Open Support Desk"
+msgstr ""
