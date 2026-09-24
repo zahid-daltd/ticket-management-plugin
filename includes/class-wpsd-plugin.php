@@ -34,6 +34,7 @@ class WPSD_Plugin {
 	 */
 	public function run() {
 		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
+		add_action( 'plugins_loaded', array( 'WPSD_DB', 'maybe_upgrade' ) );
 		add_action( 'rest_api_init', array( $this->rest, 'register' ) );
 
 		// Normalize REST envelope errors into {success,data,error} shape.

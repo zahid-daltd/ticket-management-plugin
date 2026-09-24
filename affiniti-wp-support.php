@@ -3,7 +3,7 @@
  * Plugin Name:       Affiniti WP Support
  * Plugin URI:        https://dataaffiniti.com/plugins/affiniti-wp-support
  * Description:       Self-contained product service/complaint ticket system. Guest ticket form via shortcode, staff admin panel, and a versioned REST API (wpsd/v1) for mobile apps and partner systems. No external SaaS required.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 6.4
  * Requires PHP:      8.0
  * Author:            Data Affiniti LTD
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Plugin constants. All prefixed to avoid collisions.
 if ( ! defined( 'WPSD_VERSION' ) ) {
-	define( 'WPSD_VERSION', '1.0.0' );
+	define( 'WPSD_VERSION', '1.0.1' );
 }
 if ( ! defined( 'WPSD_PLUGIN_FILE' ) ) {
 	define( 'WPSD_PLUGIN_FILE', __FILE__ );
@@ -38,7 +38,7 @@ if ( ! defined( 'WPSD_REST_NAMESPACE' ) ) {
 	define( 'WPSD_REST_NAMESPACE', 'wpsd/v1' );
 }
 if ( ! defined( 'WPSD_DB_VERSION' ) ) {
-	define( 'WPSD_DB_VERSION', '1.0.0' );
+	define( 'WPSD_DB_VERSION', '1.0.2' );
 }
 
 /**

@@ -4,9 +4,9 @@ product_category,label
 ,Unusual noise or vibration
 ,Installation / setup request
 ,Warranty claim
-Refrigerator,Water leakage inside fridge
-Refrigerator,Door gasket damaged
-Washing Machine,Drum not spinning
-Washing Machine,Water inlet / drainage issue
-Television,No display / backlight issue
-Television,Remote / software issue
+Home & Kitchen,Water leakage inside fridge
+Home & Kitchen,Door gasket damaged
+Home & Kitchen,Drum not spinning
+Home & Kitchen,Water inlet / drainage issue
+Electronics,No display / backlight issue
+Electronics,Remote / software issue

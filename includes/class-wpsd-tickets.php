@@ -36,7 +36,7 @@ class WPSD_Tickets {
 		$table = WPSD_DB::table( 'tickets' );
 
 		// Duplicate/spam prevention (web AND api equally).
-		$dup = self::find_duplicate( $clean['mobile'], $clean['problem_type_id'] );
+		$dup = self::find_duplicate( $clean['mobile'], $clean['problem_description'] );
 		if ( $dup ) {
 			return new WP_Error(
 				'wpsd_duplicate_ticket',
@@ -56,23 +56,19 @@ class WPSD_Tickets {
 			'customer_name'          => $clean['customer_name'],
 			'mobile'                 => $clean['mobile'],
 			'alternative_mobile'     => $clean['alternative_mobile'],
-			'district_id'            => $clean['district_id'],
-			'thana_id'               => $clean['thana_id'],
-			'route_id'               => $clean['route_id'],
-			'service_center_id'      => $clean['service_center_id'],
 			'address'                => $clean['address'],
 			'product_id'             => $clean['product_id'],
 			'brand_snapshot'         => $clean['brand_snapshot'],
 			'product_name_snapshot'  => $clean['product_name_snapshot'],
 			'barcode'                => $clean['barcode'],
-			'problem_type_id'        => $clean['problem_type_id'],
+			'problem_description'    => $clean['problem_description'],
 			'comments'               => $clean['comments'],
 			'status'                 => 'new',
-			'priority'               => 'med',
+			'priority'               => $clean['priority'],
 			'assigned_agent_id'      => null,
 			'source'                 => isset( $context['source'] ) ? $context['source'] : $clean['source'],
 		);
-		$formats = array( '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s' );
+		$formats = array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- ticket insert.
 		$ok = $wpdb->insert( $table, $data, $formats );
@@ -116,13 +112,14 @@ class WPSD_Tickets {
 	}
 
 	/**
-	 * Find a recent duplicate ticket number for mobile + problem type.
+	 * Find a recent duplicate ticket number for mobile + problem description
+	 * (e.g. a double-click resubmit of the same form).
 	 *
-	 * @param string $mobile          Normalized mobile.
-	 * @param int    $problem_type_id Problem type id.
+	 * @param string $mobile              Normalized mobile.
+	 * @param string $problem_description Free-text problem description.
 	 * @return string Empty string when none, else ticket number.
 	 */
-	private static function find_duplicate( $mobile, $problem_type_id ) {
+	private static function find_duplicate( $mobile, $problem_description ) {
 		global $wpdb;
 		$table  = WPSD_DB::table( 'tickets' );
 		$window = self::duplicate_window();
@@ -130,9 +127,9 @@ class WPSD_Tickets {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- duplicate check.
 		$found = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT ticket_number FROM `{$table}` WHERE mobile = %s AND problem_type_id = %d AND created_at >= %s ORDER BY id DESC LIMIT 1",
+				"SELECT ticket_number FROM `{$table}` WHERE mobile = %s AND problem_description = %s AND created_at >= %s ORDER BY id DESC LIMIT 1",
 				$mobile,
-				$problem_type_id,
+				$problem_description,
 				$since
 			)
 		);
@@ -180,43 +177,23 @@ class WPSD_Tickets {
 	 * @return array
 	 */
 	public static function hydrate( $row ) {
-		global $wpdb;
-		$names = array(
-			'district_name'       => array( 'districts', (int) $row['district_id'] ),
-			'thana_name'          => array( 'thanas', (int) $row['thana_id'] ),
-			'route_name'          => array( 'routes', (int) $row['route_id'] ),
-			'service_center_name' => array( 'service_centers', (int) $row['service_center_id'] ),
-		);
-		foreach ( $names as $out_key => $spec ) {
-			list( $tkey, $id ) = $spec;
-			$table = WPSD_DB::table( $tkey );
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- label hydration.
-			$row[ $out_key ] = $wpdb->get_var( $wpdb->prepare( "SELECT name FROM `{$table}` WHERE id = %d LIMIT 1", $id ) );
-		}
-		$products = WPSD_DB::table( 'products' );
-		$problems = WPSD_DB::table( 'problem_types' );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- label hydration.
-		$row['product_label']  = $wpdb->get_var( $wpdb->prepare( "SELECT CONCAT(brand, ' - ', model_name) FROM `{$products}` WHERE id = %d LIMIT 1", (int) $row['product_id'] ) );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- label hydration.
-		$row['problem_label']  = $wpdb->get_var( $wpdb->prepare( "SELECT label FROM `{$problems}` WHERE id = %d LIMIT 1", (int) $row['problem_type_id'] ) );
+		// Products are WooCommerce posts, not a plugin-owned table — the name
+		// captured at ticket creation/update time is the durable label (also
+		// survives the product being renamed or removed later). Problem is
+		// free text on the ticket row itself, no lookup needed.
+		$row['product_label'] = $row['product_name_snapshot'];
 		return $row;
 	}
 
 	/**
 	 * Search/list tickets with filters + pagination. Default 20/page, max 100.
 	 *
-	 * @param array $args Filters: status, district_id, service_center_id, product_id, assigned_agent_id, search, page, per_page, orderby, order.
+	 * @param array $args Filters: status, product_id, assigned_agent_id, search, page, per_page, orderby, order.
 	 * @return array Array with items, total, page, per_page, total_pages.
 	 */
 	public static function search( $args ) {
 		global $wpdb;
-		$table    = WPSD_DB::table( 'tickets' );
-		$dist     = WPSD_DB::table( 'districts' );
-		$thanas   = WPSD_DB::table( 'thanas' );
-		$routes   = WPSD_DB::table( 'routes' );
-		$centers  = WPSD_DB::table( 'service_centers' );
-		$products = WPSD_DB::table( 'products' );
-		$problems = WPSD_DB::table( 'problem_types' );
+		$table = WPSD_DB::table( 'tickets' );
 
 		$where  = array( '1=1' );
 		$params = array();
@@ -225,7 +202,7 @@ class WPSD_Tickets {
 			$where[]  = 't.status = %s';
 			$params[] = sanitize_key( $args['status'] );
 		}
-		foreach ( array( 'district_id', 'service_center_id', 'product_id', 'assigned_agent_id' ) as $f ) {
+		foreach ( array( 'product_id', 'assigned_agent_id' ) as $f ) {
 			if ( ! empty( $args[ $f ] ) ) {
 				$where[]  = "t.`{$f}` = %d";
 				$params[] = absint( $args[ $f ] );
@@ -260,21 +237,9 @@ class WPSD_Tickets {
 
 		$offset   = ( $page - 1 ) * $per_page;
 		$params_p = array_merge( $params, array( $per_page, $offset ) );
-		// Single query with labels joined in (no per-row hydration queries).
-		$list_sql = "SELECT t.*,
-			d.name AS district_name,
-			th.name AS thana_name,
-			r.name AS route_name,
-			c.name AS service_center_name,
-			CONCAT(p.brand, ' - ', p.model_name) AS product_label,
-			pt.label AS problem_label
+		// Single query, no per-row hydration.
+		$list_sql = "SELECT t.*, t.product_name_snapshot AS product_label
 			FROM `{$table}` t
-			LEFT JOIN `{$dist}` d ON d.id = t.district_id
-			LEFT JOIN `{$thanas}` th ON th.id = t.thana_id
-			LEFT JOIN `{$routes}` r ON r.id = t.route_id
-			LEFT JOIN `{$centers}` c ON c.id = t.service_center_id
-			LEFT JOIN `{$products}` p ON p.id = t.product_id
-			LEFT JOIN `{$problems}` pt ON pt.id = t.problem_type_id
 			WHERE {$where_sql} ORDER BY t.`{$orderby}` {$order} LIMIT %d OFFSET %d";
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared -- order/columns allow-listed; values prepared.
 		$rows = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_p ), ARRAY_A );
@@ -321,12 +286,8 @@ class WPSD_Tickets {
 			'address'                => '%s',
 			'barcode'                => '%s',
 			'comments'               => '%s',
-			'district_id'            => '%d',
-			'thana_id'               => '%d',
-			'route_id'               => '%d',
-			'service_center_id'      => '%d',
 			'product_id'             => '%d',
-			'problem_type_id'        => '%d',
+			'problem_description'    => '%s',
 			'brand_snapshot'         => '%s',
 			'product_name_snapshot'  => '%s',
 		);
@@ -359,7 +320,7 @@ class WPSD_Tickets {
 
 		// Log a system reply summarizing the change.
 		$changes = array();
-		foreach ( array( 'status', 'priority', 'assigned_agent_id', 'customer_name', 'mobile', 'alternative_mobile', 'address', 'barcode', 'comments', 'district_id', 'thana_id', 'route_id', 'service_center_id', 'product_id', 'problem_type_id' ) as $col ) {
+		foreach ( array( 'status', 'priority', 'assigned_agent_id', 'customer_name', 'mobile', 'alternative_mobile', 'address', 'barcode', 'comments', 'product_id', 'problem_description' ) as $col ) {
 			$b = isset( $before[ $col ] ) ? (string) $before[ $col ] : '';
 			$a = isset( $after[ $col ] ) ? (string) $after[ $col ] : '';
 			if ( $b !== $a ) {
@@ -478,7 +439,9 @@ class WPSD_Tickets {
 		$table = WPSD_DB::table( 'tickets' );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- aggregate stats.
 		$counts = $wpdb->get_results( "SELECT status, COUNT(*) AS c FROM `{$table}` GROUP BY status", ARRAY_A );
-		$by_status = array();
+		// A status with zero tickets never appears in a GROUP BY result — seed
+		// every known status at 0 first so the dashboard always shows all of them.
+		$by_status = array_fill_keys( WPSD_Validator::statuses(), 0 );
 		$total     = 0;
 		foreach ( (array) $counts as $row ) {
 			$by_status[ $row['status'] ] = (int) $row['c'];

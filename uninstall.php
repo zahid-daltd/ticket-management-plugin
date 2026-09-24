@@ -4,7 +4,7 @@
  *
  * Data is preserved by default. Tables are dropped only when the site owner
  * explicitly enabled "Delete all ticket data on uninstall" under
- * Support Desk → Import / Settings.
+ * Affiniti Support → Import / Settings.
  *
  * @package WPSD
  * @since 1.0.0

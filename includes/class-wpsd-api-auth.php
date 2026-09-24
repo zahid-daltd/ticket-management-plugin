@@ -16,19 +16,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WPSD_API_Auth {
 
 	/**
-	 * Whether HTTPS is required for external API access.
-	 * Filter `wpsd_require_ssl` can relax this for local development.
+	 * Whether HTTPS is required for external API access. Auto-relaxed for
+	 * obviously-local hosts (.local/.test/localhost/127.0.0.1 — the TLDs
+	 * every common local dev stack, incl. Local by Flywheel, uses) so API
+	 * clients can be exercised from Postman without a TLS cert. Filter
+	 * `wpsd_require_ssl` still overrides this either way.
 	 *
 	 * @return bool
 	 */
 	public static function ssl_required() {
-		return (bool) apply_filters( 'wpsd_require_ssl', true );
+		$host        = isset( $_SERVER['HTTP_HOST'] ) ? strtolower( (string) $_SERVER['HTTP_HOST'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- host compared against a fixed pattern only, never output or used in a query.
+		$host        = preg_replace( '/:\d+$/', '', $host );
+		$is_dev_host = '' !== $host && ( 'localhost' === $host || '127.0.0.1' === $host || (bool) preg_match( '/\.(local|test)$/', $host ) );
+		return (bool) apply_filters( 'wpsd_require_ssl', ! $is_dev_host );
 	}
 
 	/**
 	 * Authenticate an external consumer from request headers.
 	 *
-	 * Headers: X-WPSD-API-Key, X-WPSD-API-Secret.
+	 * Headers: X-WPSD-API-Key, X-WPSD-API-Secret. Deliberately NOT the
+	 * standard `Authorization: Basic` header — WP core's Application
+	 * Passwords support intercepts any Basic Auth attempt at REST bootstrap
+	 * time (before routing reaches this plugin at all) and rejects it
+	 * outright when the username isn't a real WP user login, so a plugin
+	 * cannot repurpose that header for its own key/secret scheme.
 	 * Optional replay protection: X-WPSD-Timestamp + X-WPSD-Signature
 	 * (HMAC-SHA256 over timestamp + '.' + raw body, keyed with the API secret).
 	 *

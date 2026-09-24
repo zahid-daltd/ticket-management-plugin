@@ -49,14 +49,14 @@ curl -X POST https://example.com/wp-json/wpsd/v1/tickets \
   -H 'Content-Type: application/json' \
   -H 'X-WPSD-API-Key: wpsd_xxx' \
   -H 'X-WPSD-API-Secret: wpss_yyy' \
-  -d '{"customer_name":"Rahim Uddin","mobile":"01712345678","district_id":1,"thana_id":1,"route_id":1,"service_center_id":1,"address":"House 5 Road 2","product_id":1,"problem_type_id":4,"comments":"Not cooling"}'
+  -d '{"customer_name":"Rahim Uddin","mobile":"01712345678","district_id":1,"thana_id":1,"route_id":1,"service_center_id":1,"address":"House 5 Road 2","product_id":1,"problem_description":"Not cooling","comments":"Not cooling"}'
 ```
 
 → `201 {"success":true,"data":{"ticket":{...,"ticket_number":"TKT-2026-00123"}},"error":null}`
 
 Validation notes: BD mobiles (`01XXXXXXXXX` / `+8801XXXXXXXXX` normalized server-side),
 address ≤ 50 chars (client + server), full location-hierarchy check on every path,
-duplicate guard (same mobile + problem type within 10 min → `409 wpsd_duplicate_ticket`),
+duplicate guard (same mobile + problem description within 10 min → `409 wpsd_duplicate_ticket`),
 per-IP/mobile rate limits (web) and per-key limits (API) → `429 wpsd_rate_limited` with `Retry-After`.
 
 ### 2.2 Reading tickets
@@ -76,24 +76,25 @@ List: `GET /tickets?status=new&page=1&per_page=20&search=TKT&district_id=&servic
   Staff may also correct customer fields (`customer_name`, `mobile`,
   `alternative_mobile`, `address`, `barcode`, `comments`), relocate a ticket by
   sending a complete `district_id`/`thana_id`/`route_id`/`service_center_id` set
-  (hierarchy revalidated), or change product/problem by sending `product_id` +
-  `problem_type_id` together (snapshots refresh). Partial location or product
-  updates are rejected.
+  (hierarchy revalidated), change `product_id` (snapshot refreshes), or edit
+  `problem_description` independently. Partial location updates are rejected.
 * `GET /tickets/by-id/{id}` — staff-only single view with full thread (internal
   notes included) and attachments. Used by the admin app.
 * `POST /tickets/{id}/replies` `{"message":"...","is_internal_note":false}`.
 * `POST /tickets/{id}/attachments` multipart `file` (JPG/PNG/WEBP/PDF ≤ 5 MB).
 * `DELETE /tickets/{id}` (`wpsd_delete_tickets` — administrators).
 
-### 2.4 Lookups (public, transient-cached)
+### 2.4 Lookups (staff session, API key, or the public-form nonce)
 
 `GET /lookups/districts`, `/lookups/thanas?district_id=`, `/lookups/routes?thana_id=`,
-`/lookups/service-centers?route_id=`, `/lookups/products?brand=`, `/lookups/problem-types?product_id=`.
+`/lookups/service-centers?route_id=`, `/lookups/products?search=` (live WooCommerce catalog).
+Not fully open — see `can_use_lookup()` in `class-wpsd-rest.php`.
 
 ### 2.5 Admin lookup & API-client CRUD
 
 * `GET|POST /admin/lookups/{type}` and `PUT|DELETE /admin/lookups/{type}/{id}`
-  (`{type}` = districts, thanas, routes, service-centers, products, problem-types).
+  (`{type}` = districts, thanas, routes, service-centers). Products come from
+  WooCommerce; problem is free text on the ticket — neither is managed here.
   Delete is refused with `409 wpsd_in_use` when tickets reference the row.
 * `GET|POST /admin/api-clients`, `DELETE /admin/api-clients/{id}`,
   `POST /admin/api-clients/{id}` `{"action":"rotate"}`.
@@ -142,7 +143,7 @@ Bundles enqueue only on pages containing the shortcodes.
 
 * Tables are created with `dbDelta()` on activation; sample data seeds from
   `includes/data/seed-*.csv` (idempotent — skips non-empty tables).
-* Re-import/extend via **Support Desk → Import / Settings** (header-row CSVs;
+* Re-import/extend via **Affiniti Support → Import / Settings** (header-row CSVs;
   thanas/routes/centers resolve parents by name).
 * Uninstall preserves data unless "Delete all ticket data on uninstall" is enabled.
 

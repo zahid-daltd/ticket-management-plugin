@@ -107,14 +107,17 @@ class WPSD_REST {
 			)
 		);
 
-		// Lookups (public-readable; cached).
+		// Lookups: not fully open — see can_use_lookup(). Staff session,
+		// external API key, or the same public-form nonce the guest ticket
+		// form already carries (an API key can't gate these: it would have
+		// to be embedded in public page JS, which defeats the point of a secret).
 		register_rest_route(
 			$ns,
 			'/lookups/districts',
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'get_districts' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'can_use_lookup' ),
 			)
 		);
 		register_rest_route(
@@ -123,7 +126,7 @@ class WPSD_REST {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'get_thanas' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'can_use_lookup' ),
 			)
 		);
 		register_rest_route(
@@ -132,7 +135,7 @@ class WPSD_REST {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'get_routes' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'can_use_lookup' ),
 			)
 		);
 		register_rest_route(
@@ -141,7 +144,7 @@ class WPSD_REST {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'get_centers' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'can_use_lookup' ),
 			)
 		);
 		register_rest_route(
@@ -150,7 +153,7 @@ class WPSD_REST {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'get_products' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'can_use_lookup' ),
 			)
 		);
 		register_rest_route(
@@ -159,7 +162,7 @@ class WPSD_REST {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'get_problem_types' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'can_use_lookup' ),
 			)
 		);
 
@@ -325,11 +328,17 @@ class WPSD_REST {
 	/**
 	 * List/search: staff with view cap, or external `full`-scope clients only.
 	 * SPEC DECISION (Open Q6/Q7): partners never enumerate the system by default.
+	 * Exception: guest single-ticket lookup via ?id=&phone_number= — ownership
+	 * is verified in list_tickets() itself, same pattern as get_ticket()'s
+	 * ticket_number+mobile guest path.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return bool|WP_Error
 	 */
 	public function can_list_tickets( $request ) {
+		if ( absint( $request->get_param( 'id' ) ) && '' !== (string) $request->get_param( 'phone_number' ) ) {
+			return true;
+		}
 		if ( current_user_can( 'wpsd_view_tickets' ) ) {
 			return true;
 		}
@@ -407,6 +416,34 @@ class WPSD_REST {
 			return true;
 		}
 		return $this->fail( 'wpsd_forbidden', __( 'You do not have permission to view statistics.', 'affiniti-wp-support' ), 403 );
+	}
+
+	/**
+	 * Lookup reads: staff, an external API client, or the public-form nonce
+	 * the guest ticket form already carries. Not `__return_true` — but also
+	 * not the API key alone, since that secret can never safely live in
+	 * public page JS. This is reference data (place names, product catalog),
+	 * so the nonce is about keeping it off random scrapers, not protecting PII.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool|WP_Error
+	 */
+	public function can_use_lookup( $request ) {
+		if ( current_user_can( 'wpsd_view_tickets' ) ) {
+			return true;
+		}
+		$client = WPSD_API_Auth::authenticate( $request );
+		if ( is_wp_error( $client ) ) {
+			return $client;
+		}
+		if ( ! empty( $client ) ) {
+			return true;
+		}
+		$nonce = (string) $request->get_param( 'wpsd_nonce' );
+		if ( wp_verify_nonce( $nonce, 'wpsd_public_form' ) ) {
+			return true;
+		}
+		return $this->fail( 'wpsd_forbidden', __( 'Authentication required.', 'affiniti-wp-support' ), 401 );
 	}
 
 	// ------------------------------------------------------------------
@@ -567,16 +604,35 @@ class WPSD_REST {
 	}
 
 	/**
-	 * GET /tickets — paginated list (default 20, max 100).
+	 * GET /tickets — paginated staff/API list, OR (when ?id=&phone_number=
+	 * are both present) a guest single-ticket lookup verified by phone
+	 * ownership — mirrors get_ticket()'s ticket_number+mobile guest path,
+	 * just keyed by numeric id instead.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function list_tickets( $request ) {
+		$id    = absint( $request->get_param( 'id' ) );
+		$phone = (string) $request->get_param( 'phone_number' );
+		if ( $id && '' !== $phone ) {
+			$ticket = WPSD_Tickets::get_by_id( $id );
+			if ( ! $ticket ) {
+				return $this->fail( 'wpsd_not_found', __( 'Ticket not found.', 'affiniti-wp-support' ), 404 );
+			}
+			$mobile = WPSD_Validator::validate_bd_mobile( wp_unslash( $phone ) );
+			if ( is_wp_error( $mobile ) ) {
+				return $this->from_error( $mobile );
+			}
+			if ( ! hash_equals( (string) $ticket['mobile'], (string) $mobile ) ) {
+				// Generic message to avoid id enumeration.
+				return $this->fail( 'wpsd_forbidden', __( 'Ticket not found or phone number does not match.', 'affiniti-wp-support' ), 403 );
+			}
+			return $this->ok( array( 'ticket' => $this->public_ticket_shape( $ticket ) ) );
+		}
+
 		$args = array(
 			'status'            => sanitize_key( (string) $request->get_param( 'status' ) ),
-			'district_id'       => absint( $request->get_param( 'district_id' ) ),
-			'service_center_id' => absint( $request->get_param( 'service_center_id' ) ),
 			'product_id'        => absint( $request->get_param( 'product_id' ) ),
 			'assigned_agent_id' => absint( $request->get_param( 'assigned_agent_id' ) ),
 			'search'            => sanitize_text_field( (string) $request->get_param( 'search' ) ),
@@ -742,20 +798,14 @@ class WPSD_REST {
 	}
 
 	/**
-	 * GET /lookups/products?brand=
-	 * SPEC DECISION (Open Q2): brand is dynamic, derived from products.
+	 * GET /lookups/products?search= — sourced from the live WooCommerce catalog.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response
 	 */
 	public function get_products( $request ) {
-		$brand = sanitize_text_field( (string) $request->get_param( 'brand' ) );
-		return $this->ok(
-			array(
-				'items'  => WPSD_Lookups::products( $brand ),
-				'brands' => WPSD_Lookups::brands(),
-			)
-		);
+		$search = sanitize_text_field( (string) $request->get_param( 'search' ) );
+		return $this->ok( array( 'items' => WPSD_Lookups::products( $search ) ) );
 	}
 
 	/**
@@ -1071,6 +1121,23 @@ class WPSD_REST {
 		$name = sanitize_text_field( (string) $request->get_param( 'client_name' ) );
 		if ( '' === $name ) {
 			return $this->fail( 'wpsd_validation_failed', __( 'Client name is required.', 'affiniti-wp-support' ), 400 );
+		}
+
+		// Cap total API clients (revoke deletes the row, so this is a plain
+		// COUNT — no soft-disable state to account for).
+		$max = (int) apply_filters( 'wpsd_max_api_clients', 2 );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- capacity check.
+		$existing = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM `' . WPSD_DB::table( 'api_clients' ) . '`' );
+		if ( $existing >= $max ) {
+			return $this->fail(
+				'wpsd_limit_reached',
+				sprintf(
+					/* translators: %d: maximum number of API clients allowed */
+					__( 'Limit of %d API clients reached. Revoke one before creating another.', 'affiniti-wp-support' ),
+					$max
+				),
+				409
+			);
 		}
 		$scope = sanitize_key( (string) $request->get_param( 'scope' ) );
 		if ( ! in_array( $scope, array( 'create_only', 'create_and_read', 'full' ), true ) ) {

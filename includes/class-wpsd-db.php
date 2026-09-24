@@ -129,16 +129,17 @@ class WPSD_DB {
 			customer_name VARCHAR(150) NOT NULL,
 			mobile VARCHAR(20) NOT NULL,
 			alternative_mobile VARCHAR(20) DEFAULT NULL,
-			district_id BIGINT(20) UNSIGNED NOT NULL,
-			thana_id BIGINT(20) UNSIGNED NOT NULL,
-			route_id BIGINT(20) UNSIGNED NOT NULL,
-			service_center_id BIGINT(20) UNSIGNED NOT NULL,
-			address VARCHAR(50) NOT NULL,
+			district_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+			thana_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+			route_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+			service_center_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+			address TEXT NOT NULL,
 			product_id BIGINT(20) UNSIGNED NOT NULL,
 			brand_snapshot VARCHAR(120) NOT NULL DEFAULT '',
 			product_name_snapshot VARCHAR(190) NOT NULL DEFAULT '',
 			barcode VARCHAR(120) DEFAULT NULL,
-			problem_type_id BIGINT(20) UNSIGNED NOT NULL,
+			problem_type_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+			problem_description VARCHAR(500) NOT NULL DEFAULT '',
 			comments TEXT DEFAULT NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'new',
 			priority VARCHAR(10) NOT NULL DEFAULT 'med',
@@ -201,6 +202,18 @@ class WPSD_DB {
 		}
 
 		update_option( 'wpsd_db_version', WPSD_DB_VERSION );
+	}
+
+	/**
+	 * Re-run table creation when the schema version changes, so column
+	 * additions (e.g. problem_description) reach sites that are already
+	 * active — not just fresh activations. dbDelta() is additive/idempotent,
+	 * safe to call on every version bump.
+	 */
+	public static function maybe_upgrade() {
+		if ( get_option( 'wpsd_db_version' ) !== WPSD_DB_VERSION ) {
+			self::create_tables();
+		}
 	}
 
 	/**

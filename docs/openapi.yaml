@@ -140,8 +140,8 @@ paths:
                 thana_id: { type: integer }
                 route_id: { type: integer }
                 service_center_id: { type: integer }
-                product_id: { type: integer, description: Must be sent together with problem_type_id }
-                problem_type_id: { type: integer }
+                product_id: { type: integer }
+                problem_description: { type: string, minLength: 3, maxLength: 500 }
       responses:
         '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
         '403': { $ref: '#/components/responses/Error' }
@@ -213,22 +213,12 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
   /lookups/products:
     get:
-      summary: Products (+brands); optional brand filter (public, cached)
+      summary: Live WooCommerce product search, name/SKU (public — requires staff session, API key, or the public-form nonce)
       parameters:
-        - name: brand
+        - name: search
           in: query
           required: false
           schema: { type: string }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
-  /lookups/problem-types:
-    get:
-      summary: Problem types (category-specific + global fallback) (public, cached)
-      parameters:
-        - name: product_id
-          in: query
-          required: false
-          schema: { type: integer }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
   /admin/lookups/{type}:
@@ -239,7 +229,7 @@ paths:
         - name: type
           in: path
           required: true
-          schema: { type: string, enum: [districts, thanas, routes, service-centers, products, problem-types] }
+          schema: { type: string, enum: [districts, thanas, routes, service-centers] }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } }
     post:
@@ -369,7 +359,7 @@ components:
             message: { type: string }
     TicketCreate:
       type: object
-      required: [customer_name, mobile, district_id, thana_id, route_id, service_center_id, address, product_id, problem_type_id]
+      required: [customer_name, mobile, district_id, thana_id, route_id, service_center_id, address, product_id, problem_description]
       properties:
         customer_name: { type: string, minLength: 2, maxLength: 150 }
         mobile: { type: string, example: '01712345678', description: BD number; +880 form accepted and normalized }
@@ -379,9 +369,9 @@ components:
         route_id: { type: integer }
         service_center_id: { type: integer }
         address: { type: string, maxLength: 50 }
-        product_id: { type: integer }
+        product_id: { type: integer, description: WooCommerce product (post) id }
         barcode: { type: string, maxLength: 120 }
-        problem_type_id: { type: integer }
+        problem_description: { type: string, minLength: 3, maxLength: 500 }
         comments: { type: string, maxLength: 2000 }
         wpsd_nonce: { type: string, description: Required for guest web submissions (action wpsd_public_form) }
   responses:

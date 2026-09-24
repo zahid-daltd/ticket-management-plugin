@@ -37,11 +37,12 @@ class WPSD_Public {
 
 		$js  = WPSD_PLUGIN_URL . 'assets/public-dist/wpsd-public.js';
 		$css = WPSD_PLUGIN_URL . 'assets/public-dist/wpsd-public.css';
+		$ver = WPSD_Admin::asset_version( 'public' );
 
 		if ( file_exists( WPSD_PLUGIN_DIR . 'assets/public-dist/wpsd-public.css' ) ) {
-			wp_enqueue_style( 'wpsd-public', $css, array(), WPSD_VERSION );
+			wp_enqueue_style( 'wpsd-public', $css, array(), $ver );
 		}
-		wp_enqueue_script( 'wpsd-public', $js, array(), WPSD_VERSION, true );
+		wp_enqueue_script( 'wpsd-public', $js, array(), $ver, true );
 
 		wp_add_inline_script(
 			'wpsd-public',

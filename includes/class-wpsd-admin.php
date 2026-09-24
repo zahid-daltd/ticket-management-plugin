@@ -16,24 +16,64 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WPSD_Admin {
 
 	/**
-	 * Register the top-level menu + submenus.
+	 * Version string for a compiled bundle: file modification time so
+	 * browsers fetch fresh JS/CSS after every plugin update (falls back
+	 * to the plugin version when the file is unreadable).
+	 *
+	 * @param string $app 'admin' or 'public'.
+	 * @return string
+	 */
+	public static function asset_version( $app ) {
+		$bundle = 'public' === $app ? 'public-dist/wpsd-public.js' : 'admin-dist/wpsd-admin.js';
+		$mtime  = @filemtime( WPSD_PLUGIN_DIR . 'assets/' . $bundle );
+		if ( $mtime ) {
+			return WPSD_VERSION . '.' . $mtime;
+		}
+		return WPSD_VERSION;
+	}
+
+	/**
+	 * Register the top-level menu + submenus (guarded against double registration).
 	 */
 	public function register_menus() {
+		static $done = false;
+		if ( $done ) {
+			return;
+		}
+		$done = true;
 		add_menu_page(
-			__( 'Support Desk', 'affiniti-wp-support' ),
-			__( 'Support Desk', 'affiniti-wp-support' ),
+			__( 'Affiniti Support', 'affiniti-wp-support' ),
+			__( 'Affiniti Support', 'affiniti-wp-support' ),
 			'wpsd_view_tickets',
 			'wpsd-support',
 			array( $this, 'render_app_page' ),
 			'dashicons-sos',
 			26
 		);
+		// First submenu slug must match the parent's to rename the
+		// auto-created duplicate entry — this is what "Dashboard" becomes.
 		add_submenu_page(
 			'wpsd-support',
-			__( 'All Tickets', 'affiniti-wp-support' ),
-			__( 'All Tickets', 'affiniti-wp-support' ),
+			__( 'Dashboard', 'affiniti-wp-support' ),
+			__( 'Dashboard', 'affiniti-wp-support' ),
 			'wpsd_view_tickets',
 			'wpsd-support',
+			array( $this, 'render_app_page' )
+		);
+		add_submenu_page(
+			'wpsd-support',
+			__( 'Tickets', 'affiniti-wp-support' ),
+			__( 'Tickets', 'affiniti-wp-support' ),
+			'wpsd_view_tickets',
+			'wpsd-support-tickets',
+			array( $this, 'render_app_page' )
+		);
+		add_submenu_page(
+			'wpsd-support',
+			__( 'API Keys', 'affiniti-wp-support' ),
+			__( 'API Keys', 'affiniti-wp-support' ),
+			'wpsd_view_tickets',
+			'wpsd-support-api-keys',
 			array( $this, 'render_app_page' )
 		);
 		add_submenu_page(
@@ -51,27 +91,47 @@ class WPSD_Admin {
 	 *
 	 * @param string $hook Current admin page hook.
 	 */
-	public function enqueue_assets( $hook ) {
-		if ( 'toplevel_page_wpsd-support' !== $hook ) {
+	public function enqueue_assets( $hook ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- signature required by admin_enqueue_scripts; routing uses $_GET['page'] instead (see below).
+		// Gate by page slug, not $hook: the hook suffix for a plugin's own
+		// submenus is prefixed from sanitize_title() of the top-level menu's
+		// *title* (here "affiniti-support"), which would silently break this
+		// check if that title text ever changes. The slug is ours to keep stable.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only menu routing, no state change.
+
+		// Every submenu that renders the SPA (Dashboard, Tickets, API Keys) —
+		// Import/Settings uses render_settings_page() instead and is excluded.
+		$explicit_tab_by_page = array(
+			'wpsd-support-tickets'  => 'tickets',
+			'wpsd-support-api-keys' => 'api-clients',
+		);
+		$spa_pages = array_merge( array( 'wpsd-support' ), array_keys( $explicit_tab_by_page ) );
+		if ( ! in_array( $page, $spa_pages, true ) ) {
 			return;
 		}
 		$js  = WPSD_PLUGIN_URL . 'assets/admin-dist/wpsd-admin.js';
 		$css = WPSD_PLUGIN_URL . 'assets/admin-dist/wpsd-admin.css';
+		$ver = self::asset_version( 'admin' );
 
 		if ( file_exists( WPSD_PLUGIN_DIR . 'assets/admin-dist/wpsd-admin.css' ) ) {
-			wp_enqueue_style( 'wpsd-admin', $css, array(), WPSD_VERSION );
+			wp_enqueue_style( 'wpsd-admin', $css, array(), $ver );
 		}
-		wp_enqueue_script( 'wpsd-admin', $js, array( 'wp-api-fetch', 'wp-i18n' ), WPSD_VERSION, true );
+		wp_enqueue_script( 'wpsd-admin', $js, array( 'wp-api-fetch', 'wp-i18n' ), $ver, true );
 		wp_set_script_translations( 'wpsd-admin', 'affiniti-wp-support', WPSD_PLUGIN_DIR . 'languages' );
 
+		// Only the two more-specific submenus force a tab — the generic
+		// Dashboard/top-level entry shares its slug with plain "open the
+		// plugin" clicks, so it leaves the in-app remembered tab alone.
+		$initial_tab = isset( $explicit_tab_by_page[ $page ] ) ? $explicit_tab_by_page[ $page ] : '';
+
 		$config = array(
-			'restUrl'   => esc_url_raw( rest_url( WPSD_REST_NAMESPACE . '/' ) ),
-			'nonce'     => wp_create_nonce( 'wp_rest' ),
-			'canManage' => current_user_can( 'wpsd_manage_tickets' ),
-			'canAssign' => current_user_can( 'wpsd_assign_tickets' ),
-			'canDelete' => current_user_can( 'wpsd_delete_tickets' ),
-			'userId'    => get_current_user_id(),
-			'i18n'      => array(
+			'restUrl'    => esc_url_raw( rest_url( WPSD_REST_NAMESPACE . '/' ) ),
+			'nonce'      => wp_create_nonce( 'wp_rest' ),
+			'canManage'  => current_user_can( 'wpsd_manage_tickets' ),
+			'canAssign'  => current_user_can( 'wpsd_assign_tickets' ),
+			'canDelete'  => current_user_can( 'wpsd_delete_tickets' ),
+			'userId'     => get_current_user_id(),
+			'initialTab' => $initial_tab,
+			'i18n'       => array(
 				'tickets' => __( 'Tickets', 'affiniti-wp-support' ),
 			),
 		);
@@ -93,7 +153,7 @@ class WPSD_Admin {
 		$stats = WPSD_Tickets::stats();
 		?>
 		<div class="wrap wpsd-admin-wrap">
-			<h1><?php echo esc_html__( 'Support Desk', 'affiniti-wp-support' ); ?></h1>
+			<h1><?php echo esc_html__( 'Affiniti Support', 'affiniti-wp-support' ); ?></h1>
 			<div id="wpsd-admin-root"
 				data-rest-url="<?php echo esc_attr( rest_url( WPSD_REST_NAMESPACE . '/' ) ); ?>"
 				data-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>">
@@ -140,7 +200,7 @@ class WPSD_Admin {
 		$cleanup     = (int) get_option( 'wpsd_uninstall_cleanup', 0 );
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html__( 'Support Desk — Import / Settings', 'affiniti-wp-support' ); ?></h1>
+			<h1><?php echo esc_html__( 'Affiniti Support — Import / Settings', 'affiniti-wp-support' ); ?></h1>
 
 			<h2><?php echo esc_html__( 'Rate limits', 'affiniti-wp-support' ); ?></h2>
 			<form method="post">
@@ -177,8 +237,6 @@ class WPSD_Admin {
 								<option value="thanas">thanas (district_name, name)</option>
 								<option value="routes">routes (thana_name, district_name, name)</option>
 								<option value="service_centers">service_centers (route_name, thana_name, name, address, contact_phone)</option>
-								<option value="products">products (brand, model_name, category)</option>
-								<option value="problem_types">problem_types (product_category, label)</option>
 							</select>
 						</td>
 					</tr>
@@ -192,7 +250,7 @@ class WPSD_Admin {
 
 			<hr />
 			<h2><?php echo esc_html__( 'API clients', 'affiniti-wp-support' ); ?></h2>
-			<p><?php echo esc_html__( 'Create, rotate, and revoke keys from the Support Desk app (API Clients tab). Secrets are stored hashed and shown once.', 'affiniti-wp-support' ); ?></p>
+			<p><?php echo esc_html__( 'Create, rotate, and revoke keys from the Affiniti Support app (API Keys tab). Secrets are stored hashed and shown once.', 'affiniti-wp-support' ); ?></p>
 		</div>
 		<?php
 	}
@@ -234,7 +292,7 @@ class WPSD_Admin {
 	public function dashboard_widget() {
 		wp_add_dashboard_widget(
 			'wpsd_dashboard',
-			__( 'Support Desk', 'affiniti-wp-support' ),
+			__( 'Affiniti Support', 'affiniti-wp-support' ),
 			function () {
 				if ( ! current_user_can( 'wpsd_view_tickets' ) ) {
 					echo esc_html__( 'No permission.', 'affiniti-wp-support' );
@@ -250,7 +308,7 @@ class WPSD_Admin {
 					echo '<li>' . esc_html__( 'Avg resolution (hrs):', 'affiniti-wp-support' ) . ' ' . esc_html( (string) $stats['avg_resolution_hours'] ) . '</li>';
 				}
 				echo '</ul>';
-				echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=wpsd-support' ) ) . '">' . esc_html__( 'Open Support Desk', 'affiniti-wp-support' ) . '</a></p>';
+				echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=wpsd-support' ) ) . '">' . esc_html__( 'Open Affiniti Support', 'affiniti-wp-support' ) . '</a></p>';
 			}
 		);
 	}

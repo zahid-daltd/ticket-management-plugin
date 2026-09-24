@@ -24,7 +24,7 @@ class WPSD_Lookups {
 	 * Flush all lookup caches.
 	 */
 	public static function flush_cache() {
-		$keys = array( 'districts', 'products', 'problem_types_global' );
+		$keys = array( 'districts', 'problem_types_global' );
 		foreach ( $keys as $k ) {
 			delete_transient( 'wpsd_lookup_' . $k );
 		}
@@ -123,57 +123,57 @@ class WPSD_Lookups {
 	}
 
 	/**
-	 * All active products (cached). Optionally filtered by brand.
+	 * Product search, sourced live from the WooCommerce catalog (not cached —
+	 * WooCommerce/WP_Query already handle object caching internally, and
+	 * stock/price/availability need to stay current).
 	 *
-	 * @param string $brand Optional brand filter.
+	 * @param string $search Optional search term (matches product title/SKU).
 	 * @return array
 	 */
-	public static function products( $brand = '' ) {
-		$cached = get_transient( 'wpsd_lookup_products' );
-		if ( false === $cached ) {
-			global $wpdb;
-			$table = WPSD_DB::table( 'products' );
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- read-only lookup.
-			$cached = $wpdb->get_results( "SELECT id, brand, model_name, category FROM `{$table}` WHERE is_active = 1 ORDER BY brand ASC, model_name ASC", ARRAY_A );
-			$cached = is_array( $cached ) ? $cached : array();
-			set_transient( 'wpsd_lookup_products', $cached, self::CACHE_TTL );
+	public static function products( $search = '' ) {
+		if ( ! function_exists( 'wc_get_products' ) ) {
+			return array();
 		}
-		if ( '' !== $brand ) {
-			return array_values(
-				array_filter(
-					$cached,
-					function ( $p ) use ( $brand ) {
-						return isset( $p['brand'] ) && 0 === strcasecmp( (string) $p['brand'], (string) $brand );
-					}
-				)
+		$args = array(
+			'status'  => 'publish',
+			'limit'   => 20,
+			'orderby' => 'title',
+			'order'   => 'ASC',
+		);
+		$search = trim( (string) $search );
+		if ( '' !== $search ) {
+			$args['s'] = $search;
+		}
+		$products = wc_get_products( $args );
+		$out      = array();
+		foreach ( $products as $product ) {
+			$out[] = array(
+				'id'   => $product->get_id(),
+				'name' => $product->get_name(),
+				'sku'  => $product->get_sku(),
 			);
 		}
-		return $cached;
+		return $out;
 	}
 
 	/**
-	 * Distinct brands (derived from products, cached with products).
+	 * WooCommerce category names assigned to a product (a product can carry
+	 * more than one — problem-type matching treats any of them as a match).
 	 *
+	 * @param int $product_id Product (WooCommerce post) id.
 	 * @return string[]
 	 */
-	public static function brands() {
-		$brands = array();
-		foreach ( self::products() as $p ) {
-			if ( isset( $p['brand'] ) && '' !== $p['brand'] ) {
-				$brands[] = $p['brand'];
-			}
-		}
-		$brands = array_unique( $brands );
-		sort( $brands );
-		return array_values( $brands );
+	private static function product_category_names( $product_id ) {
+		$terms = wp_get_post_terms( absint( $product_id ), 'product_cat', array( 'fields' => 'names' ) );
+		return is_array( $terms ) ? $terms : array();
 	}
 
 	/**
-	 * Problem types. When $product_id is given, returns types for that
-	 * product's category PLUS global types (product_category NULL).
-	 * SPEC DECISION (Open Q3): category-specific with global fallback.
+	 * Problem types. When $product_id is given, returns types matching any
+	 * of that WooCommerce product's categories PLUS global types
+	 * (product_category NULL/empty).
 	 *
-	 * @param int $product_id Optional product id.
+	 * @param int $product_id Optional product (WooCommerce post) id.
 	 * @return array|WP_Error
 	 */
 	public static function problem_types( $product_id = 0 ) {
@@ -192,20 +192,22 @@ class WPSD_Lookups {
 			return $rows;
 		}
 
-		$products = WPSD_DB::table( 'products' );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- read-only lookup.
-		$category = $wpdb->get_var( $wpdb->prepare( "SELECT category FROM `{$products}` WHERE id = %d LIMIT 1", absint( $product_id ) ) );
-		if ( ! $category ) {
+		if ( ! function_exists( 'wc_get_product' ) || ! wc_get_product( absint( $product_id ) ) ) {
 			return new WP_Error( 'wpsd_bad_product', __( 'Selected product is invalid.', 'affiniti-wp-support' ), array( 'status' => 400 ) );
 		}
+		$categories = self::product_category_names( $product_id );
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- read-only lookup.
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT id, product_category, label FROM `{$problems}` WHERE is_active = 1 AND (product_category IS NULL OR product_category = '' OR product_category = %s) ORDER BY label ASC",
-				$category
-			),
-			ARRAY_A
+		$rows = $wpdb->get_results( "SELECT id, product_category, label FROM `{$problems}` WHERE is_active = 1 ORDER BY label ASC", ARRAY_A );
+		$rows = is_array( $rows ) ? $rows : array();
+		return array_values(
+			array_filter(
+				$rows,
+				function ( $r ) use ( $categories ) {
+					$cat = $r['product_category'];
+					return ( null === $cat || '' === $cat ) || in_array( $cat, $categories, true );
+				}
+			)
 		);
-		return is_array( $rows ) ? $rows : array();
 	}
 }

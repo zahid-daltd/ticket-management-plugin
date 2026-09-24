@@ -70,7 +70,6 @@ class WPSD_Validator {
 
 	/**
 	 * Validate the full ticket payload for creation.
-	 * Includes the full district -> thana -> route -> service-center hierarchy check.
 	 *
 	 * @param array  $input  Raw input (already unslashed by caller where applicable).
 	 * @param string $source 'web' or 'api'.
@@ -109,22 +108,28 @@ class WPSD_Validator {
 			$out['alternative_mobile'] = null;
 		}
 
-		// Location ids.
-		foreach ( array( 'district_id', 'thana_id', 'route_id', 'service_center_id', 'product_id', 'problem_type_id' ) as $field ) {
-			$val = isset( $input[ $field ] ) ? absint( $input[ $field ] ) : 0;
-			if ( $val <= 0 ) {
-				$errors[ $field ] = __( 'This field is required.', 'affiniti-wp-support' );
-			} else {
-				$out[ $field ] = $val;
-			}
+		// Product id.
+		$product_id = isset( $input['product_id'] ) ? absint( $input['product_id'] ) : 0;
+		if ( $product_id <= 0 ) {
+			$errors['product_id'] = __( 'This field is required.', 'affiniti-wp-support' );
+		} else {
+			$out['product_id'] = $product_id;
 		}
 
-		// Address (max 50 chars, server-enforced).
-		$address = isset( $input['address'] ) ? sanitize_text_field( (string) $input['address'] ) : '';
+		// Problem description: free text, not a curated type list.
+		$problem = isset( $input['problem_description'] ) ? sanitize_text_field( (string) $input['problem_description'] ) : '';
+		if ( mb_strlen( $problem ) < 3 || mb_strlen( $problem ) > 500 ) {
+			$errors['problem_description'] = __( 'Describe the problem in 3 to 500 characters.', 'affiniti-wp-support' );
+		} else {
+			$out['problem_description'] = $problem;
+		}
+
+		// Address: a single free-text field now (no location hierarchy).
+		$address = isset( $input['address'] ) ? sanitize_textarea_field( (string) $input['address'] ) : '';
 		if ( '' === $address ) {
 			$errors['address'] = __( 'Address is required.', 'affiniti-wp-support' );
-		} elseif ( mb_strlen( $address ) > 50 ) {
-			$errors['address'] = __( 'Address must be 50 characters or fewer.', 'affiniti-wp-support' );
+		} elseif ( mb_strlen( $address ) > 500 ) {
+			$errors['address'] = __( 'Address must be 500 characters or fewer.', 'affiniti-wp-support' );
 		} else {
 			$out['address'] = $address;
 		}
@@ -145,25 +150,22 @@ class WPSD_Validator {
 			$out['comments'] = '' === $comments_raw ? null : wp_kses_post( $comments_raw );
 		}
 
+		// Priority (optional; defaults to 'med' when not sent).
+		$priority = isset( $input['priority'] ) ? sanitize_key( (string) $input['priority'] ) : 'med';
+		if ( ! in_array( $priority, self::priorities(), true ) ) {
+			$errors['priority'] = __( 'Invalid priority.', 'affiniti-wp-support' );
+		} else {
+			$out['priority'] = $priority;
+		}
+
 		if ( ! empty( $errors ) ) {
 			$err = new WP_Error( 'wpsd_validation_failed', __( 'Validation failed.', 'affiniti-wp-support' ) );
 			$err->add_data( array( 'fields' => $errors ), 'wpsd_validation_failed' );
 			return $err;
 		}
 
-		// Hierarchy check: never trust client-sent IDs.
-		$hierarchy = self::validate_location_hierarchy(
-			$out['district_id'],
-			$out['thana_id'],
-			$out['route_id'],
-			$out['service_center_id']
-		);
-		if ( is_wp_error( $hierarchy ) ) {
-			return $hierarchy;
-		}
-
-		// Product + problem-type check (incl. category-specific vs global).
-		$product_check = self::validate_product_problem( $out['product_id'], $out['problem_type_id'] );
+		// Product must exist as a published WooCommerce product.
+		$product_check = self::validate_product( $out['product_id'] );
 		if ( is_wp_error( $product_check ) ) {
 			return $product_check;
 		}
@@ -176,94 +178,30 @@ class WPSD_Validator {
 	}
 
 	/**
-	 * Verify district -> thana -> route -> service center chain in the DB.
+	 * Validate product exists as a published WooCommerce product. Problem
+	 * description is free text now, so there's no category matching here.
 	 *
-	 * @param int $district_id District id.
-	 * @param int $thana_id    Thana id.
-	 * @param int $route_id    Route id.
-	 * @param int $center_id   Service center id.
-	 * @return true|WP_Error
+	 * @param int $product_id WooCommerce product (post) id.
+	 * @return array|WP_Error Array with brand (always '' — no brand step) + model_name, or error.
 	 */
-	public static function validate_location_hierarchy( $district_id, $thana_id, $route_id, $center_id ) {
-		global $wpdb;
-
-		$thanas  = WPSD_DB::table( 'thanas' );
-		$routes  = WPSD_DB::table( 'routes' );
-		$centers = WPSD_DB::table( 'service_centers' );
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- validation lookup.
-		$thana_ok = $wpdb->get_var(
-			$wpdb->prepare( "SELECT id FROM `{$thanas}` WHERE id = %d AND district_id = %d LIMIT 1", $thana_id, $district_id )
-		);
-		if ( ! $thana_ok ) {
-			return new WP_Error( 'wpsd_bad_hierarchy', __( 'Thana does not belong to the selected district.', 'affiniti-wp-support' ) );
+	public static function validate_product( $product_id ) {
+		if ( ! function_exists( 'wc_get_product' ) ) {
+			return new WP_Error( 'wpsd_bad_product', __( 'WooCommerce is required for product selection.', 'affiniti-wp-support' ) );
 		}
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- validation lookup.
-		$route_ok = $wpdb->get_var(
-			$wpdb->prepare( "SELECT id FROM `{$routes}` WHERE id = %d AND thana_id = %d LIMIT 1", $route_id, $thana_id )
-		);
-		if ( ! $route_ok ) {
-			return new WP_Error( 'wpsd_bad_hierarchy', __( 'Route does not belong to the selected thana.', 'affiniti-wp-support' ) );
-		}
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- validation lookup.
-		$center_ok = $wpdb->get_var(
-			$wpdb->prepare( "SELECT id FROM `{$centers}` WHERE id = %d AND route_id = %d LIMIT 1", $center_id, $route_id )
-		);
-		if ( ! $center_ok ) {
-			return new WP_Error( 'wpsd_bad_hierarchy', __( 'Service center does not serve the selected route.', 'affiniti-wp-support' ) );
-		}
-
-		return true;
-	}
-
-	/**
-	 * Validate product exists and problem type applies (category-specific or global).
-	 *
-	 * @param int $product_id      Product id.
-	 * @param int $problem_type_id Problem type id.
-	 * @return array|WP_Error Array with brand + model_name, or error.
-	 */
-	public static function validate_product_problem( $product_id, $problem_type_id ) {
-		global $wpdb;
-		$products = WPSD_DB::table( 'products' );
-		$problems = WPSD_DB::table( 'problem_types' );
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- validation lookup.
-		$product = $wpdb->get_row(
-			$wpdb->prepare( "SELECT id, brand, model_name, category FROM `{$products}` WHERE id = %d AND is_active = 1 LIMIT 1", $product_id ),
-			ARRAY_A
-		);
-		if ( ! $product ) {
+		$product = wc_get_product( $product_id );
+		if ( ! $product || 'publish' !== $product->get_status() ) {
 			return new WP_Error( 'wpsd_bad_product', __( 'Selected product is invalid.', 'affiniti-wp-support' ) );
 		}
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- validation lookup.
-		$problem = $wpdb->get_row(
-			$wpdb->prepare( "SELECT id, product_category FROM `{$problems}` WHERE id = %d AND is_active = 1 LIMIT 1", $problem_type_id ),
-			ARRAY_A
-		);
-		if ( ! $problem ) {
-			return new WP_Error( 'wpsd_bad_problem', __( 'Selected problem type is invalid.', 'affiniti-wp-support' ) );
-		}
-
-		$cat = $problem['product_category'];
-		if ( null !== $cat && '' !== $cat && $cat !== $product['category'] ) {
-			return new WP_Error( 'wpsd_bad_problem', __( 'Selected problem type does not apply to this product.', 'affiniti-wp-support' ) );
-		}
-
 		return array(
-			'brand'      => $product['brand'],
-			'model_name' => $product['model_name'],
+			'brand'      => '',
+			'model_name' => $product->get_name(),
 		);
 	}
 
 	/**
 	 * Validate admin PATCH payload (status/priority/assignment plus editable
-	 * customer, location, and product fields). Location ids must be sent as a
-	 * complete set of four so the hierarchy can be revalidated; product and
-	 * problem type must be sent together so snapshots stay consistent.
+	 * customer, address, and product fields). Changing the product refreshes
+	 * its snapshot.
 	 *
 	 * @param array $input Raw input.
 	 * @return array|WP_Error
@@ -340,11 +278,11 @@ class WPSD_Validator {
 
 		// Address / barcode / comments.
 		if ( array_key_exists( 'address', $input ) ) {
-			$address = sanitize_text_field( (string) $input['address'] );
+			$address = sanitize_textarea_field( (string) $input['address'] );
 			if ( '' === $address ) {
 				$errors['address'] = __( 'Address is required.', 'affiniti-wp-support' );
-			} elseif ( mb_strlen( $address ) > 50 ) {
-				$errors['address'] = __( 'Address must be 50 characters or fewer.', 'affiniti-wp-support' );
+			} elseif ( mb_strlen( $address ) > 500 ) {
+				$errors['address'] = __( 'Address must be 500 characters or fewer.', 'affiniti-wp-support' );
 			} else {
 				$out['address'] = $address;
 			}
@@ -365,55 +303,26 @@ class WPSD_Validator {
 				$out['comments'] = '' === $comments_raw ? '' : wp_kses_post( $comments_raw );
 			}
 		}
-
-		// Location: partial moves are rejected; a complete set is revalidated
-		// against the hierarchy (never trust client-sent IDs).
-		$loc_fields = array( 'district_id', 'thana_id', 'route_id', 'service_center_id' );
-		$loc_given  = array();
-		foreach ( $loc_fields as $field ) {
-			if ( array_key_exists( $field, $input ) ) {
-				$loc_given[ $field ] = absint( $input[ $field ] );
-			}
-		}
-		if ( ! empty( $loc_given ) ) {
-			$missing = array();
-			foreach ( $loc_fields as $field ) {
-				if ( ! isset( $loc_given[ $field ] ) || $loc_given[ $field ] <= 0 ) {
-					$missing[] = $field;
-				}
-			}
-			if ( ! empty( $missing ) ) {
-				$errors['location'] = __( 'Location must be updated as a complete District / Thana / Route / Service Center set.', 'affiniti-wp-support' );
+		if ( array_key_exists( 'problem_description', $input ) ) {
+			$problem = sanitize_text_field( (string) $input['problem_description'] );
+			if ( mb_strlen( $problem ) < 3 || mb_strlen( $problem ) > 500 ) {
+				$errors['problem_description'] = __( 'Describe the problem in 3 to 500 characters.', 'affiniti-wp-support' );
 			} else {
-				$hierarchy = self::validate_location_hierarchy(
-					$loc_given['district_id'],
-					$loc_given['thana_id'],
-					$loc_given['route_id'],
-					$loc_given['service_center_id']
-				);
-				if ( is_wp_error( $hierarchy ) ) {
-					$errors['location'] = $hierarchy->get_error_message();
-				} else {
-					$out = array_merge( $out, $loc_given );
-				}
+				$out['problem_description'] = $problem;
 			}
 		}
 
-		// Product + problem type: must travel together; snapshots refresh.
-		$prod_given = array_key_exists( 'product_id', $input );
-		$prob_given = array_key_exists( 'problem_type_id', $input );
-		if ( $prod_given || $prob_given ) {
-			$product_id = $prod_given ? absint( $input['product_id'] ) : 0;
-			$problem_id = $prob_given ? absint( $input['problem_type_id'] ) : 0;
-			if ( $product_id <= 0 || $problem_id <= 0 ) {
-				$errors['product'] = __( 'Product and problem type must be updated together.', 'affiniti-wp-support' );
+		// Product: snapshot refreshes when it changes.
+		if ( array_key_exists( 'product_id', $input ) ) {
+			$product_id = absint( $input['product_id'] );
+			if ( $product_id <= 0 ) {
+				$errors['product'] = __( 'Product is required.', 'affiniti-wp-support' );
 			} else {
-				$check = self::validate_product_problem( $product_id, $problem_id );
+				$check = self::validate_product( $product_id );
 				if ( is_wp_error( $check ) ) {
 					$errors['product'] = $check->get_error_message();
 				} else {
 					$out['product_id']            = $product_id;
-					$out['problem_type_id']       = $problem_id;
 					$out['brand_snapshot']        = $check['brand'];
 					$out['product_name_snapshot'] = $check['model_name'];
 				}

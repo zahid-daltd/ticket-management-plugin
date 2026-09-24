@@ -5,7 +5,7 @@ Tags: support, tickets, service desk, complaints, rest api
 Requires at least: 6.4
 Tested up to: 6.8
 Requires PHP: 8.0
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,9 +15,9 @@ Self-contained product service/complaint ticket system. Guest ticket form via sh
 
 Affiniti WP Support handles product service and complaint tickets end to end:
 
-* **Guest ticket form** — add `[wpsd_ticket_form]` to any page. Cascading District → Thana → Route → Service Center dropdowns, dynamic Brand → Product list, category-aware problem types, Bangladesh mobile validation, and an inline ticket-number confirmation. No page reload.
+* **Guest ticket form** — add `[wpsd_ticket_form]` to any page. Cascading District → Thana → Route → Service Center dropdowns, a live WooCommerce product search, a free-text problem description, Bangladesh mobile validation, and an inline ticket-number confirmation. No page reload.
 * **Guest status lookup** — add `[wpsd_ticket_lookup]` so customers can check a ticket with its number plus the mobile number used at submission (ownership-checked, never an open lookup).
-* **Staff admin panel** — Support Desk menu with ticket DataTable (status/district/service-center/product/assignee filters, search, pagination), staff ticket creation and full ticket editing (customer, location with hierarchy re-check, product with snapshot refresh), single-ticket thread with internal notes, status/priority/assignment controls, lookup-table manager with proper per-table columns and add/edit forms, API-client manager (generate/rotate/revoke keys, scopes, rate limits), dashboard counts plus average resolution time (cached 5 minutes), and a wp-admin dashboard widget.
+* **Staff admin panel** — Affiniti Support menu (Dashboard, Tickets, API Keys, Import/Settings) with a ticket DataTable (status/product/assignee filters, search, pagination), staff ticket creation and full ticket editing (customer, address, product with snapshot refresh), single-ticket thread with internal notes, status/priority/assignment controls, API-client manager (generate/rotate/revoke keys, scopes, rate limits), dashboard counts plus average resolution time (cached 5 minutes), and a wp-admin dashboard widget.
 * **REST API (`wpsd/v1`)** — the React UIs and external integrators consume the same endpoints: ticket create/list/read, replies, admin status updates, cascading lookups, admin lookup CRUD, admin API-client CRUD. Consistent `{success, data, error}` envelope with correct HTTP status codes. See "REST API reference" below or `docs/openapi.yaml` in the plugin folder.
 * **Integrator auth** — per-client API key + secret (`X-WPSD-API-Key` / `X-WPSD-API-Secret`), optional HMAC-SHA256 replay protection for mobile apps, per-client rate limits and scopes (`create_only`, `create_and_read`, `full`), optional IP allow-lists, HTTPS enforced in production.
 * **Notifications** — pluggable SMS gateway (`wpsd_send_sms` filter / `wpsd_sms_gateway` action; wire SSL Wireless, Alpha SMS, D7, or Twilio without editing core), email fallback, customer confirmation on creation, SMS on status change, email to newly assigned agents.
@@ -32,7 +32,7 @@ Spec decisions locked for V1 (from specs.md open questions): a route may serve *
 1. Upload the plugin folder to `/wp-content/plugins/` (folder name must stay `affiniti-wp-support`).
 2. Activate the plugin through the 'Plugins' menu in WordPress. Tables, the "Support Agent" role, capabilities, and sample lookup data are created automatically.
 3. Add `[wpsd_ticket_form]` to a page for the public form (optionally `[wpsd_ticket_lookup]` for status checks).
-4. Open **Support Desk** in wp-admin to manage tickets. Go to **Support Desk → Import / Settings** for CSV imports and rate-limit settings.
+4. Open **Affiniti Support** in wp-admin to manage tickets. Go to **Affiniti Support → Import / Settings** for CSV imports and rate-limit settings.
 
 == Frequently Asked Questions ==
 
@@ -50,7 +50,7 @@ Publish `[wpsd_ticket_lookup]`. They enter the ticket number plus the mobile num
 
 = How do external apps authenticate? =
 
-Create a client under Support Desk → API Clients tab. Send `X-WPSD-API-Key` and `X-WPSD-API-Secret` headers. Mobile apps should additionally sign requests (`X-WPSD-Timestamp` + `X-WPSD-Signature` = HMAC-SHA256 of `timestamp.body`). See `docs/api.md` and `docs/openapi.yaml`.
+Create a client under Affiniti Support → API Keys tab. Send `X-WPSD-API-Key` and `X-WPSD-API-Secret` headers. Mobile apps should additionally sign requests (`X-WPSD-Timestamp` + `X-WPSD-Signature` = HMAC-SHA256 of `timestamp.body`). See `docs/api.md` and `docs/openapi.yaml`.
 
 = Which SMS gateway is used? =
 
@@ -58,7 +58,7 @@ None is hardcoded. Out of the box the plugin sends email and fires the `wpsd_sen
 
 = Does uninstall delete my data? =
 
-No. Data is preserved by default. Tick "Delete all ticket data on uninstall" under Support Desk → Import / Settings first, and tables are dropped on uninstall only then.
+No. Data is preserved by default. Tick "Delete all ticket data on uninstall" under Affiniti Support → Import / Settings first, and tables are dropped on uninstall only then.
 
 == Screenshots ==
 
@@ -68,6 +68,12 @@ No. Data is preserved by default. Tick "Delete all ticket data on uninstall" und
 4. API client manager with one-time secret display.
 
 == Changelog ==
+
+= 1.0.1 =
+* Added staff ticket creation and full ticket editing in the admin app (new `GET /tickets/by-id/{id}` endpoint, extended PATCH with hierarchy/product revalidation).
+* Lookup manager now shows proper per-table columns with add/edit forms instead of raw JSON.
+* Fixed one-time API secret not displaying after create/rotate.
+* shadcn-style UI refresh: badges, card headers, tabs, skeletons, select chevrons; cache-busting asset versions.
 
 = 1.0.0 =
 * Initial release: ticket CRUD, cascading lookups, admin SPA, public form + lookup shortcodes, versioned REST API with key/secret/HMAC auth, rate limiting, CSV import/seed, notifications, attachments.
