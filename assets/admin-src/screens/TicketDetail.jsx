@@ -1,4 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { StatusBadge, PriorityBadge, Skeleton } from '../lib/badges.jsx';
+
+function DetailItem({ label, value, wide }) {
+  if (!value) return null;
+  return (
+    <div className={`wpsd-detail-item${wide ? ' wpsd-span-2' : ''}`}>
+      <span className="wpsd-detail-label">{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
 
 export function TicketDetail({ client, id, onBack, onEdit, config }) {
   const [ticket, setTicket] = useState(null);
@@ -25,7 +36,7 @@ export function TicketDetail({ client, id, onBack, onEdit, config }) {
 
   useEffect(() => { load(); }, [id]);
   if (error) return <div><button className="wpsd-btn" onClick={onBack}>← Back</button><p className="wpsd-error">{error}</p></div>;
-  if (!ticket) return <p>Loading…</p>;
+  if (!ticket) return <Skeleton />;
 
   return (
     <div className="wpsd-flex wpsd-flex-col wpsd-gap-4">
@@ -34,33 +45,56 @@ export function TicketDetail({ client, id, onBack, onEdit, config }) {
         <button className="wpsd-btn" onClick={onEdit}>Edit ticket</button>
       </div>
       <div className="wpsd-card">
-        <h3>{ticket.ticket_number}</h3>
-        <p><strong>{ticket.customer_name}</strong> · {ticket.mobile}
-          {ticket.alternative_mobile ? ` · alt: ${ticket.alternative_mobile}` : ''}</p>
-        <p>{ticket.district_name} / {ticket.thana_name} / {ticket.route_name} / {ticket.service_center_name}</p>
-        <p>Address: {ticket.address}</p>
-        <p>Product: {ticket.product_label || `${ticket.brand_snapshot} — ${ticket.product_name_snapshot}`} · Problem: {ticket.problem_label}</p>
-        {ticket.barcode && <p>Barcode: {ticket.barcode}</p>}
-        {ticket.comments && <p>Comments: {ticket.comments}</p>}
-        <p>Status: {ticket.status} · Priority: {ticket.priority} · Source: {ticket.source}</p>
+        <div className="wpsd-card-header">
+          <div className="wpsd-toolbar">
+            <h3 className="wpsd-card-title">{ticket.ticket_number}</h3>
+            <div className="wpsd-flex wpsd-gap-2">
+              <StatusBadge value={ticket.status} />
+              <PriorityBadge value={ticket.priority} />
+              <span className="wpsd-badge wpsd-b-gray">{ticket.source}</span>
+            </div>
+          </div>
+          <p className="wpsd-card-desc">
+            Created {ticket.created_at}
+            {ticket.updated_at && ticket.updated_at !== ticket.created_at ? ` · updated ${ticket.updated_at}` : ''}
+          </p>
+        </div>
+        <div className="wpsd-detail-grid">
+          <DetailItem label="Customer" value={ticket.customer_name} />
+          <DetailItem label="Mobile" value={ticket.alternative_mobile ? `${ticket.mobile} (alt: ${ticket.alternative_mobile})` : ticket.mobile} />
+          <DetailItem label="Address" value={ticket.address} wide />
+          <DetailItem label="Product" value={ticket.product_label || ticket.product_name_snapshot} />
+          <DetailItem label="Problem" value={ticket.problem_description} />
+          <DetailItem label="Barcode" value={ticket.barcode} />
+          <DetailItem label="Comments" value={ticket.comments} wide />
+        </div>
       </div>
 
       <div className="wpsd-card">
-        <h3>Replies</h3>
-        <ul>
+        <div className="wpsd-card-header">
+          <h3 className="wpsd-card-title">Replies</h3>
+          <p className="wpsd-card-desc">Conversation thread. Internal notes are hidden from customers.</p>
+        </div>
+        <ul className="wpsd-replies">
           {(replies || []).map((r) => (
             <li key={r.id}><strong>{r.author_type}{r.is_internal_note ? ' (internal)' : ''}:</strong> {r.message}</li>
           ))}
         </ul>
         {attachments.length > 0 && (
-          <div><h4>Attachments</h4><ul>
-            {attachments.map((a) => <li key={a.id}><a href={a.file_url} target="_blank" rel="noreferrer">{a.original_filename}</a></li>)}
-          </ul></div>
+          <div>
+            <h4>Attachments</h4>
+            <ul>
+              {attachments.map((a) => <li key={a.id}><a href={a.file_url} target="_blank" rel="noreferrer">{a.original_filename}</a></li>)}
+            </ul>
+          </div>
         )}
         {config && config.canManage && (
           <div className="wpsd-flex wpsd-flex-col wpsd-gap-2">
-            <textarea className="wpsd-input" value={message} onChange={(e) => setMessage(e.target.value)} rows={3} />
-            <label><input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} /> Internal note</label>
+            <textarea className="wpsd-input" value={message} onChange={(e) => setMessage(e.target.value)} rows={3} placeholder="Write a reply…" />
+            <label className="wpsd-flex wpsd-gap-2">
+              <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} />
+              <span className="wpsd-muted">Internal note</span>
+            </label>
             <button
               className="wpsd-btn"
               onClick={async () => {
@@ -76,25 +110,33 @@ export function TicketDetail({ client, id, onBack, onEdit, config }) {
       </div>
 
       {config && config.canManage && (
-        <div className="wpsd-card wpsd-flex wpsd-flex-col wpsd-gap-2">
-          <h3>Quick update</h3>
-          <label>Status
-            <select className="wpsd-input" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">—</option>
-              {['new', 'assigned', 'in_progress', 'resolved', 'closed', 'cancelled'].map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </label>
-          <label>Priority
-            <select className="wpsd-input" value={priority} onChange={(e) => setPriority(e.target.value)}>
-              <option value="">—</option>
-              {['low', 'med', 'high'].map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </label>
-          {config.canAssign && (
-            <label>Assign agent (user id)
-              <input className="wpsd-input" value={agent} onChange={(e) => setAgent(e.target.value)} inputMode="numeric" />
+        <div className="wpsd-card">
+          <div className="wpsd-card-header">
+            <h3 className="wpsd-card-title">Quick update</h3>
+            <p className="wpsd-card-desc">Change status, priority, or assignment without opening the full editor.</p>
+          </div>
+          <div className="wpsd-card-content wpsd-form-grid">
+            <label className="wpsd-field">
+              <span>Status</span>
+              <select className="wpsd-input" value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="">—</option>
+                {['new', 'assigned', 'in_progress', 'resolved', 'closed', 'cancelled'].map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
             </label>
-          )}
+            <label className="wpsd-field">
+              <span>Priority</span>
+              <select className="wpsd-input" value={priority} onChange={(e) => setPriority(e.target.value)}>
+                <option value="">—</option>
+                {['low', 'med', 'high'].map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            {config.canAssign && (
+              <label className="wpsd-field">
+                <span>Assign agent (user id)</span>
+                <input className="wpsd-input" value={agent} onChange={(e) => setAgent(e.target.value)} inputMode="numeric" />
+              </label>
+            )}
+          </div>
           <button
             className="wpsd-btn wpsd-btn-primary"
             onClick={async () => {

@@ -3,14 +3,26 @@ import { api } from './lib/api.js';
 import { TicketList } from './screens/TicketList.jsx';
 import { TicketDetail } from './screens/TicketDetail.jsx';
 import { TicketForm } from './screens/TicketForm.jsx';
-import { LookupManager } from './screens/LookupManager.jsx';
 import { ApiClients } from './screens/ApiClients.jsx';
 import { Dashboard } from './screens/Dashboard.jsx';
 
-const TABS = ['dashboard', 'tickets', 'lookups', 'api-clients'];
+const TABS = [['dashboard', 'Dashboard'], ['tickets', 'Tickets'], ['api-clients', 'API Keys']];
+const TAB_KEYS = TABS.map(([t]) => t);
+const TAB_STORAGE_KEY = 'wpsd_active_tab';
+
+function loadStoredTab() {
+  try {
+    const saved = window.localStorage.getItem(TAB_STORAGE_KEY);
+    return TAB_KEYS.includes(saved) ? saved : 'dashboard';
+  } catch (e) {
+    return 'dashboard';
+  }
+}
 
 export function App({ config }) {
-  const [tab, setTab] = useState('tickets');
+  // A WP admin submenu click (Tickets/API Keys) carries an explicit tab and
+  // wins; otherwise fall back to whatever the user last had open.
+  const [tab, setTab] = useState(() => (config && config.initialTab) || loadStoredTab());
   // view: { name: 'list' } | { name: 'detail', id } | { name: 'new' } | { name: 'edit', id }
   const [view, setView] = useState({ name: 'list' });
   const client = api(config);
@@ -20,9 +32,18 @@ export function App({ config }) {
     if (summary) summary.style.display = 'none';
   }, []);
 
+  // Keep the remembered tab in sync with an explicit menu navigation, so the
+  // generic/Dashboard entry point falls back to it on a later visit too.
+  useEffect(() => {
+    if (config && config.initialTab) {
+      try { window.localStorage.setItem(TAB_STORAGE_KEY, config.initialTab); } catch (e) { /* ignore */ }
+    }
+  }, []);
+
   function goTab(t) {
     setTab(t);
     setView({ name: 'list' });
+    try { window.localStorage.setItem(TAB_STORAGE_KEY, t); } catch (e) { /* ignore */ }
   }
 
   async function createTicket(form) {
@@ -36,15 +57,12 @@ export function App({ config }) {
       customer_name: form.customer_name,
       mobile: form.mobile,
       alternative_mobile: form.alternative_mobile || '',
-      district_id: Number(form.district_id),
-      thana_id: Number(form.thana_id),
-      route_id: Number(form.route_id),
-      service_center_id: Number(form.service_center_id),
       address: form.address,
       product_id: Number(form.product_id),
-      problem_type_id: Number(form.problem_type_id),
+      problem_description: form.problem_description,
       barcode: form.barcode || '',
       comments: form.comments || '',
+      priority: form.priority,
     };
     const data = await client.patch(`tickets/${id}`, body);
     setView({ name: 'detail', id });
@@ -53,8 +71,8 @@ export function App({ config }) {
 
   return (
     <div className="wpsd-flex wpsd-flex-col wpsd-gap-4">
-      <nav className="wpsd-flex wpsd-gap-2" role="tablist">
-        {TABS.map((t) => (
+      <nav className="wpsd-tabs wpsd-flex wpsd-gap-2" role="tablist">
+        {TABS.map(([t, label]) => (
           <button
             key={t}
             role="tab"
@@ -62,7 +80,7 @@ export function App({ config }) {
             className={tab === t ? 'wpsd-btn wpsd-btn-primary' : 'wpsd-btn'}
             onClick={() => goTab(t)}
           >
-            {t}
+            {label}
           </button>
         ))}
       </nav>
@@ -84,7 +102,6 @@ export function App({ config }) {
           onSaved={(form) => updateTicket(view.id, form)}
           onCancel={() => setView({ name: 'detail', id: view.id })} />
       )}
-      {tab === 'lookups' && <LookupManager client={client} />}
       {tab === 'api-clients' && <ApiClients client={client} />}
     </div>
   );
@@ -102,13 +119,7 @@ function TicketEditLoader({ client, id, onSaved, onCancel }) {
   if (!ticket) return <p>Loading…</p>;
   const initial = {
     ...ticket,
-    district_id: String(ticket.district_id || ''),
-    thana_id: String(ticket.thana_id || ''),
-    route_id: String(ticket.route_id || ''),
-    service_center_id: String(ticket.service_center_id || ''),
     product_id: String(ticket.product_id || ''),
-    problem_type_id: String(ticket.problem_type_id || ''),
-    brand: ticket.brand_snapshot || '',
   };
   return <TicketForm client={client} initial={initial} submitLabel="Save changes" onSaved={onSaved} onCancel={onCancel} />;
 }
