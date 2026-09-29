@@ -330,19 +330,17 @@ class WPSD_REST {
 	}
 
 	/**
-	 * List/search: staff with view cap, or external `full`-scope clients only.
-	 * SPEC DECISION (Open Q6/Q7): partners never enumerate the system by default.
-	 * Exception: guest single-ticket lookup via ?id=&phone_number= — ownership
-	 * is verified in list_tickets() itself, same pattern as get_ticket()'s
-	 * ticket_number+mobile guest path.
+	 * List/search, and the id+phone_number single-ticket lookup, both gated
+	 * the same way: staff with view cap, or external `full`-scope clients.
+	 * SPEC DECISION (Open Q6/Q7): partners never enumerate the system by
+	 * default. No unauthenticated path of any kind — a plain browser GET
+	 * (no way to set custom headers) must never return ticket data, even
+	 * when it supplies a correct phone number.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return bool|WP_Error
 	 */
 	public function can_list_tickets( $request ) {
-		if ( absint( $request->get_param( 'id' ) ) && '' !== (string) $request->get_param( 'phone_number' ) ) {
-			return true;
-		}
 		if ( current_user_can( 'wpsd_view_tickets' ) ) {
 			return true;
 		}
@@ -361,8 +359,9 @@ class WPSD_REST {
 	}
 
 	/**
-	 * Single-ticket read: staff, or owner via mobile, or scoped API client.
-	 * Never an open lookup-by-ID.
+	 * Single-ticket read: staff, or scoped API client. No unauthenticated
+	 * guest path — a plain browser GET (no way to set custom headers) must
+	 * never return ticket data, regardless of what query params it carries.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return bool|WP_Error
@@ -382,8 +381,7 @@ class WPSD_REST {
 			$request->set_param( 'wpsd_api_client', $client );
 			return true;
 		}
-		// Guest ownership check happens in the callback (mobile required).
-		return true;
+		return $this->fail( 'wpsd_forbidden', __( 'Authentication required.', 'affiniti-wp-support' ), 401 );
 	}
 
 	/**
@@ -423,11 +421,9 @@ class WPSD_REST {
 	}
 
 	/**
-	 * Lookup reads: staff, an external API client, or the public-form nonce
-	 * the guest ticket form already carries. Not `__return_true` — but also
-	 * not the API key alone, since that secret can never safely live in
-	 * public page JS. This is reference data (place names, product catalog),
-	 * so the nonce is about keeping it off random scrapers, not protecting PII.
+	 * Lookup reads: staff or an external API client only. The public ticket
+	 * form no longer needs any of these (product/location pickers were
+	 * removed from it), so there is no remaining reason for a nonce-only path.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return bool|WP_Error
@@ -441,10 +437,6 @@ class WPSD_REST {
 			return $client;
 		}
 		if ( ! empty( $client ) ) {
-			return true;
-		}
-		$nonce = (string) $request->get_param( 'wpsd_nonce' );
-		if ( wp_verify_nonce( $nonce, 'wpsd_public_form' ) ) {
 			return true;
 		}
 		return $this->fail( 'wpsd_forbidden', __( 'Authentication required.', 'affiniti-wp-support' ), 401 );
@@ -519,7 +511,8 @@ class WPSD_REST {
 	}
 
 	/**
-	 * GET /tickets/{ticket_number} with ownership check.
+	 * GET /tickets/{ticket_number}. Reachable only once can_read_ticket()
+	 * has already confirmed staff or a scoped API client — no guest path.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
@@ -542,31 +535,7 @@ class WPSD_REST {
 			);
 		}
 
-		// External client: scoped read (no mobile needed; scope is the control).
-		$client = $request->get_param( 'wpsd_api_client' );
-		if ( is_array( $client ) && ! empty( $client ) ) {
-			return $this->ok(
-				array(
-					'ticket'  => $this->public_ticket_shape( $ticket ),
-					'replies' => WPSD_Tickets::get_replies( (int) $ticket['id'], false ),
-				)
-			);
-		}
-
-		// Guest: must prove ownership with the matching mobile number.
-		$mobile_param = $request->get_param( 'mobile' );
-		if ( empty( $mobile_param ) ) {
-			return $this->fail( 'wpsd_owner_required', __( 'Provide the mobile number used on this ticket to view it.', 'affiniti-wp-support' ), 403 );
-		}
-		$mobile = WPSD_Validator::validate_bd_mobile( wp_unslash( $mobile_param ) );
-		if ( is_wp_error( $mobile ) ) {
-			return $this->from_error( $mobile );
-		}
-		if ( ! hash_equals( (string) $ticket['mobile'], (string) $mobile ) ) {
-			// Generic message to avoid number enumeration.
-			return $this->fail( 'wpsd_forbidden', __( 'Ticket not found or mobile does not match.', 'affiniti-wp-support' ), 403 );
-		}
-
+		// External client: scoped read.
 		return $this->ok(
 			array(
 				'ticket'  => $this->public_ticket_shape( $ticket ),
@@ -609,18 +578,20 @@ class WPSD_REST {
 
 	/**
 	 * GET /tickets — paginated staff/API list, OR (when ?id=&phone_number=
-	 * are both present) a guest single-ticket lookup verified by phone
-	 * ownership — mirrors get_ticket()'s ticket_number+mobile guest path,
-	 * just keyed by numeric id instead.
+	 * are both present) a single-ticket lookup filtered by phone match.
+	 * Reachable only once can_list_tickets() has already confirmed staff or
+	 * a `full`-scope API key — the phone match is an extra filter on top of
+	 * that, never a substitute for it. `id` is the public ticket_number
+	 * (string, e.g. "TKT-2026-00042"), never the internal numeric row id.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function list_tickets( $request ) {
-		$id    = absint( $request->get_param( 'id' ) );
-		$phone = (string) $request->get_param( 'phone_number' );
-		if ( $id && '' !== $phone ) {
-			$ticket = WPSD_Tickets::get_by_id( $id );
+		$ticket_number = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$phone         = sanitize_text_field( (string) $request->get_param( 'phone_number' ) );
+		if ( '' !== $ticket_number && '' !== $phone ) {
+			$ticket = WPSD_Tickets::get_by_number( $ticket_number );
 			if ( ! $ticket ) {
 				return $this->fail( 'wpsd_not_found', __( 'Ticket not found.', 'affiniti-wp-support' ), 404 );
 			}
@@ -629,7 +600,6 @@ class WPSD_REST {
 				return $this->from_error( $mobile );
 			}
 			if ( ! hash_equals( (string) $ticket['mobile'], (string) $mobile ) ) {
-				// Generic message to avoid id enumeration.
 				return $this->fail( 'wpsd_forbidden', __( 'Ticket not found or phone number does not match.', 'affiniti-wp-support' ), 403 );
 			}
 			return $this->ok( array( 'ticket' => $this->public_ticket_shape( $ticket ) ) );

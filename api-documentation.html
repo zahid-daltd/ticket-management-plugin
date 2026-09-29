@@ -511,11 +511,16 @@
             </tr>
             <tr>
               <td>Guest web form</td>
-              <td><code>wpsd_nonce</code> body/query param</td>
-              <td>The plugin's own public ticket-submission shortcode. Single-page-load lifetime, not for external use.</td>
+              <td><code>wpsd_nonce</code> body param</td>
+              <td>Ticket <strong>creation only</strong> - the plugin's own public ticket-submission shortcode. Single-page-load lifetime, not for external use.</td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="callout tip" style="margin-top:16px">
+        <span class="glyph">i</span>
+        <div><p>Every route that returns data - reading a ticket, listing/searching, and all <code>/lookups/*</code> reference data - requires the Staff or External-tool row above. There is no unauthenticated read path: a request with no matching credential always gets <code>401 wpsd_forbidden</code>, regardless of what query params it carries. This is deliberate - a plain browser address bar has no way to set the <code>X-WPSD-*</code> headers, so pasting a URL can never leak ticket data.</p></div>
       </div>
 
       <h3 style="font-size:1.05rem;margin:28px 0 10px;font-weight:600">Sending the API key</h3>
@@ -637,8 +642,7 @@
             <tr><td><code>wpsd_rate_limited</code></td><td>429</td><td>Too many requests - see <code>Retry-After</code> header.</td></tr>
             <tr><td><code>wpsd_unauthorized</code></td><td>401</td><td>Missing, unknown, or incorrect API key/secret.</td></tr>
             <tr><td><code>wpsd_https_required</code></td><td>403</td><td>API-key request over plain HTTP on a non-local domain.</td></tr>
-            <tr><td><code>wpsd_forbidden</code></td><td>401/403</td><td>Authenticated, but this scope/capability can't do that.</td></tr>
-            <tr><td><code>wpsd_owner_required</code></td><td>403</td><td>Guest ticket read with no mobile/phone provided to prove ownership.</td></tr>
+            <tr><td><code>wpsd_forbidden</code></td><td>401 or 403</td><td>401 with no credentials at all; 403 when authenticated but the scope/capability doesn't allow it.</td></tr>
             <tr><td><code>wpsd_not_found</code></td><td>404</td><td>No ticket / resource with that identifier.</td></tr>
             <tr><td><code>wpsd_limit_reached</code></td><td>409</td><td>The API-client cap (2 by default) is already full.</td></tr>
             <tr><td><code>wpsd_in_use</code></td><td>409</td><td>Admin tried to delete a lookup row a ticket still references.</td></tr>
@@ -722,10 +726,10 @@
     </section>
 
     <section id="read-by-number" class="endpoint">
-      <div class="endpoint-head"><span class="method get">GET</span><span class="path">/tickets/{ticket_number}?mobile=</span></div>
-      <p class="endpoint-summary">Look up a ticket by its public number. A customer-facing "check my ticket status" endpoint.</p>
-      <div class="auth-pills"><span class="pill on">API key (create_and_read+)</span><span class="pill">Staff cookie</span><span class="pill on">Guest + mobile</span></div>
-      <p>With an API key of scope <code>create_and_read</code> or <code>full</code>, <code>mobile</code> isn't required - the key itself is the authorization. Without a key, the caller must supply the <code>mobile</code> the ticket was created with; a mismatch returns a deliberately generic <code>403</code> so ticket numbers can't be brute-forced against arbitrary phone numbers.</p>
+      <div class="endpoint-head"><span class="method get">GET</span><span class="path">/tickets/{ticket_number}</span></div>
+      <p class="endpoint-summary">Look up a single ticket by its public number.</p>
+      <div class="auth-pills"><span class="pill on">API key (create_and_read+)</span><span class="pill">Staff cookie</span></div>
+      <p>No guest path - there is no way to read a ticket without a <code>create_and_read</code>/<code>full</code>-scope API key or a staff login. (An earlier revision of this API let a caller supply the ticket's own <code>mobile</code> as a substitute credential; that was removed because a plain browser URL can prove nothing about who is asking - see the callout in Authentication above.)</p>
       <div class="code-panel">
         <span class="code-label">curl</span>
         <pre><button class="copy-btn" type="button">Copy</button><span class="k">curl</span> <span class="s">"https://your-site.com/wp-json/wpsd/v1/tickets/TKT-2026-00042"</span> \
@@ -736,18 +740,24 @@
 
     <section id="read-by-id" class="endpoint">
       <div class="endpoint-head"><span class="method get">GET</span><span class="path">/tickets?id=&amp;phone_number=</span></div>
-      <p class="endpoint-summary">The same guest lookup as above, but keyed by the numeric ticket id and parameter name <code>phone_number</code> instead. No credentials needed - ownership is proven by the phone match.</p>
-      <div class="auth-pills"><span class="pill on">None (phone match required)</span></div>
+      <p class="endpoint-summary">Look up a single ticket by ticket number and phone, as an alternative to the path above - handy when your caller already has a phone number to verify against. Shares the <code>/tickets</code> route with List/search below: supplying both <code>id</code> and <code>phone_number</code> switches to this single-ticket mode instead of a paginated list.</p>
+      <div class="auth-pills"><span class="pill on">API key (full scope)</span><span class="pill">Staff cookie</span></div>
+      <div class="callout tip">
+        <span class="glyph">i</span>
+        <div><p>Requires the same credential as List/search - the phone match is an <em>additional</em> check on top of that, never a substitute for it. <code>id</code> is the public ticket number (string, e.g. <code>TKT-2026-00042</code>), never the internal numeric row id.</p></div>
+      </div>
       <div class="code-panel">
         <span class="code-label">curl</span>
-        <pre><button class="copy-btn" type="button">Copy</button><span class="k">curl</span> <span class="s">"https://your-site.com/wp-json/wpsd/v1/tickets?id=42&phone_number=01712345678"</span></pre>
+        <pre><button class="copy-btn" type="button">Copy</button><span class="k">curl</span> <span class="s">"https://your-site.com/wp-json/wpsd/v1/tickets?id=TKT-2026-00042&phone_number=01712345678"</span> \
+  -H <span class="s">"X-WPSD-API-Key: wpsd_xxxxxxxxxxxxxxxx"</span> \
+  -H <span class="s">"X-WPSD-API-Secret: wpss_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"</span></pre>
       </div>
-      <p>A wrong <code>phone_number</code> returns <code>403</code>; a nonexistent <code>id</code> returns <code>404</code>. Both are deliberately terse to avoid id enumeration.</p>
+      <p>A wrong <code>phone_number</code> returns <code>403</code>; a nonexistent <code>id</code> returns <code>404</code>. Both are deliberately terse to avoid ticket-number enumeration by a caller who is already authenticated but guessing at other customers' tickets.</p>
     </section>
 
     <section id="list-tickets" class="endpoint">
       <div class="endpoint-head"><span class="method get">GET</span><span class="path">/tickets</span></div>
-      <p class="endpoint-summary">Paginated ticket search - enumerating the whole system. Restricted to staff and <code>full</code>-scope keys only; partner integrations never get a free listing by default.</p>
+      <p class="endpoint-summary">Paginated ticket search - enumerating the whole system. Restricted to staff and <code>full</code>-scope keys only; partner integrations never get a free listing by default. Pass <code>id</code> and <code>phone_number</code> together instead of these filters to get the single-ticket lookup mode described above.</p>
       <div class="auth-pills"><span class="pill on">API key (full scope only)</span><span class="pill">Staff cookie</span></div>
       <div class="tbl-wrap">
         <table>
@@ -832,6 +842,7 @@
 
     <section id="other-lookups" class="endpoint">
       <div class="endpoint-head"><span class="path">/lookups/products | /districts | /thanas | /routes | /service-centers | /problem-types</span></div>
+      <div class="auth-pills"><span class="pill on">API key</span><span class="pill">Staff cookie</span></div>
       <p class="endpoint-summary">Legacy reference data - WooCommerce product search plus Bangladesh administrative-area and problem-category lookups. These predate the current ticket form and are no longer required for ticket creation - <code>product_id</code>/<code>district_id</code>/<code>thana_id</code>/<code>route_id</code>/<code>service_center_id</code> are accepted for backward compatibility but always read back as <code>0</code> on new tickets. Left here for completeness; safe to ignore in a new integration. <code>/problem-types?product_id=</code> still validates the id against WooCommerce and returns <code>wpsd_bad_product</code> (400) if it doesn't resolve to a published product.</p>
     </section>
 
@@ -885,7 +896,7 @@
 
   <footer>
     <span>Affiniti Support | <code>wpsd/v1</code></span>
-    <span>Generated 2026-09-29 (rev 2: fixed validation-error HTTP status)</span>
+    <span>Generated 2026-09-29 (rev 5: id+phone lookup restored, now requires an API key or staff login like every other read)</span>
   </footer>
 </div>
 
