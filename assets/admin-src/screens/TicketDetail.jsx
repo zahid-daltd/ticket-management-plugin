@@ -63,9 +63,8 @@ export function TicketDetail({ client, id, onBack, onEdit, config }) {
           <DetailItem label="Customer" value={ticket.customer_name} />
           <DetailItem label="Mobile" value={ticket.alternative_mobile ? `${ticket.mobile} (alt: ${ticket.alternative_mobile})` : ticket.mobile} />
           <DetailItem label="Address" value={ticket.address} wide />
-          <DetailItem label="Product" value={ticket.product_label || ticket.product_name_snapshot} />
           <DetailItem label="Problem" value={ticket.problem_description} />
-          <DetailItem label="Barcode" value={ticket.barcode} />
+          <DetailItem label="Barcode/Warranty ID" value={ticket.warranty_id} />
           <DetailItem label="Comments" value={ticket.comments} wide />
         </div>
       </div>

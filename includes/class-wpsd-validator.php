@@ -108,14 +108,6 @@ class WPSD_Validator {
 			$out['alternative_mobile'] = null;
 		}
 
-		// Product id.
-		$product_id = isset( $input['product_id'] ) ? absint( $input['product_id'] ) : 0;
-		if ( $product_id <= 0 ) {
-			$errors['product_id'] = __( 'This field is required.', 'affiniti-wp-support' );
-		} else {
-			$out['product_id'] = $product_id;
-		}
-
 		// Problem description: free text, not a curated type list.
 		$problem = isset( $input['problem_description'] ) ? sanitize_text_field( (string) $input['problem_description'] ) : '';
 		if ( mb_strlen( $problem ) < 3 || mb_strlen( $problem ) > 500 ) {
@@ -134,12 +126,12 @@ class WPSD_Validator {
 			$out['address'] = $address;
 		}
 
-		// Barcode (optional free text, max 120).
-		$barcode = isset( $input['barcode'] ) ? sanitize_text_field( (string) $input['barcode'] ) : '';
-		if ( mb_strlen( $barcode ) > 120 ) {
-			$errors['barcode'] = __( 'Barcode must be 120 characters or fewer.', 'affiniti-wp-support' );
+		// Warranty ID / barcode (optional free text, max 120).
+		$warranty_id = isset( $input['warranty_id'] ) ? sanitize_text_field( (string) $input['warranty_id'] ) : '';
+		if ( mb_strlen( $warranty_id ) > 120 ) {
+			$errors['warranty_id'] = __( 'Warranty ID must be 120 characters or fewer.', 'affiniti-wp-support' );
 		} else {
-			$out['barcode'] = '' === $barcode ? null : $barcode;
+			$out['warranty_id'] = '' === $warranty_id ? null : $warranty_id;
 		}
 
 		// Comments (optional, kses-filtered, max 2000).
@@ -164,44 +156,14 @@ class WPSD_Validator {
 			return $err;
 		}
 
-		// Product must exist as a published WooCommerce product.
-		$product_check = self::validate_product( $out['product_id'] );
-		if ( is_wp_error( $product_check ) ) {
-			return $product_check;
-		}
-		$out['brand_snapshot']          = $product_check['brand'];
-		$out['product_name_snapshot']   = $product_check['model_name'];
-
 		$out['source'] = in_array( $source, self::sources(), true ) ? $source : 'web';
 
 		return $out;
 	}
 
 	/**
-	 * Validate product exists as a published WooCommerce product. Problem
-	 * description is free text now, so there's no category matching here.
-	 *
-	 * @param int $product_id WooCommerce product (post) id.
-	 * @return array|WP_Error Array with brand (always '' — no brand step) + model_name, or error.
-	 */
-	public static function validate_product( $product_id ) {
-		if ( ! function_exists( 'wc_get_product' ) ) {
-			return new WP_Error( 'wpsd_bad_product', __( 'WooCommerce is required for product selection.', 'affiniti-wp-support' ) );
-		}
-		$product = wc_get_product( $product_id );
-		if ( ! $product || 'publish' !== $product->get_status() ) {
-			return new WP_Error( 'wpsd_bad_product', __( 'Selected product is invalid.', 'affiniti-wp-support' ) );
-		}
-		return array(
-			'brand'      => '',
-			'model_name' => $product->get_name(),
-		);
-	}
-
-	/**
 	 * Validate admin PATCH payload (status/priority/assignment plus editable
-	 * customer, address, and product fields). Changing the product refreshes
-	 * its snapshot.
+	 * customer and address fields).
 	 *
 	 * @param array $input Raw input.
 	 * @return array|WP_Error
@@ -287,12 +249,12 @@ class WPSD_Validator {
 				$out['address'] = $address;
 			}
 		}
-		if ( array_key_exists( 'barcode', $input ) ) {
-			$barcode = sanitize_text_field( (string) $input['barcode'] );
-			if ( mb_strlen( $barcode ) > 120 ) {
-				$errors['barcode'] = __( 'Barcode must be 120 characters or fewer.', 'affiniti-wp-support' );
+		if ( array_key_exists( 'warranty_id', $input ) ) {
+			$warranty_id = sanitize_text_field( (string) $input['warranty_id'] );
+			if ( mb_strlen( $warranty_id ) > 120 ) {
+				$errors['warranty_id'] = __( 'Warranty ID must be 120 characters or fewer.', 'affiniti-wp-support' );
 			} else {
-				$out['barcode'] = $barcode;
+				$out['warranty_id'] = $warranty_id;
 			}
 		}
 		if ( array_key_exists( 'comments', $input ) ) {
@@ -309,23 +271,6 @@ class WPSD_Validator {
 				$errors['problem_description'] = __( 'Describe the problem in 3 to 500 characters.', 'affiniti-wp-support' );
 			} else {
 				$out['problem_description'] = $problem;
-			}
-		}
-
-		// Product: snapshot refreshes when it changes.
-		if ( array_key_exists( 'product_id', $input ) ) {
-			$product_id = absint( $input['product_id'] );
-			if ( $product_id <= 0 ) {
-				$errors['product'] = __( 'Product is required.', 'affiniti-wp-support' );
-			} else {
-				$check = self::validate_product( $product_id );
-				if ( is_wp_error( $check ) ) {
-					$errors['product'] = $check->get_error_message();
-				} else {
-					$out['product_id']            = $product_id;
-					$out['brand_snapshot']        = $check['brand'];
-					$out['product_name_snapshot'] = $check['model_name'];
-				}
 			}
 		}
 

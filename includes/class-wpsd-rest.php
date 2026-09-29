@@ -633,7 +633,6 @@ class WPSD_REST {
 
 		$args = array(
 			'status'            => sanitize_key( (string) $request->get_param( 'status' ) ),
-			'product_id'        => absint( $request->get_param( 'product_id' ) ),
 			'assigned_agent_id' => absint( $request->get_param( 'assigned_agent_id' ) ),
 			'search'            => sanitize_text_field( (string) $request->get_param( 'search' ) ),
 			'page'              => absint( $request->get_param( 'page' ) ),

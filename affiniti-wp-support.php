@@ -38,7 +38,7 @@ if ( ! defined( 'WPSD_REST_NAMESPACE' ) ) {
 	define( 'WPSD_REST_NAMESPACE', 'wpsd/v1' );
 }
 if ( ! defined( 'WPSD_DB_VERSION' ) ) {
-	define( 'WPSD_DB_VERSION', '1.0.2' );
+	define( 'WPSD_DB_VERSION', '1.0.3' );
 }
 
 /**

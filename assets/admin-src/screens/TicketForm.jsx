@@ -1,65 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
 const EMPTY = {
-  customer_name: '', mobile: '', alternative_mobile: '', address: '', product_id: '',
-  barcode: '', problem_description: '', comments: '', priority: 'med',
+  customer_name: '', mobile: '', alternative_mobile: '', address: '',
+  warranty_id: '', problem_description: '', comments: '', priority: 'med',
 };
-
-const productLabel = (p) => p.name + (p.sku ? ` (${p.sku})` : '');
 
 /**
  * Staff ticket form — used for creating tickets and editing them.
- * Address is a single free-text field. Product is a live search against
- * the WooCommerce catalog. Server validation is authoritative; per-field
- * errors render inline.
+ * Address and problem are free-text fields. Server validation is
+ * authoritative; per-field errors render inline.
  */
 export function TicketForm({ client, initial, onSaved, onCancel, submitLabel }) {
-  const [productSearch, setProductSearch] = useState((initial && initial.product_name_snapshot) || '');
-  const [products, setProducts] = useState([]);
-  const [productOpen, setProductOpen] = useState(false);
-  const [productActive, setProductActive] = useState(0);
   const [form, setForm] = useState({ ...EMPTY, ...(initial || {}) });
   const [errors, setErrors] = useState({});
   const [sending, setSending] = useState(false);
-
-  // Debounced product search against the live WooCommerce catalog.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      client.get(`lookups/products?search=${encodeURIComponent(productSearch)}`)
-        .then((d) => { setProducts(d.items || []); setProductActive(0); })
-        .catch(() => null);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [productSearch]);
-
-  // When editing, seed the picker with the saved product so it shows
-  // selected even before any search term narrows the live catalog list.
-  useEffect(() => {
-    if (initial && initial.product_id) {
-      setProducts((prev) => [
-        { id: initial.product_id, name: initial.product_name_snapshot || 'Current product', sku: '' },
-        ...prev,
-      ]);
-    }
-  }, []);
-
-  function onProduct(v) {
-    setForm((f) => ({ ...f, product_id: v }));
-  }
-
-  function selectProduct(p) {
-    setProductSearch(productLabel(p));
-    setProductOpen(false);
-    onProduct(String(p.id));
-  }
-
-  function onProductKeyDown(e) {
-    if (!productOpen || products.length === 0) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setProductActive((i) => Math.min(i + 1, products.length - 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setProductActive((i) => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter') { e.preventDefault(); selectProduct(products[productActive]); }
-    else if (e.key === 'Escape') { setProductOpen(false); }
-  }
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -105,43 +59,10 @@ export function TicketForm({ client, initial, onSaved, onCancel, submitLabel }) 
       <div className="wpsd-card">
         <div className="wpsd-card-header">
           <h3 className="wpsd-card-title">Service information</h3>
-          <p className="wpsd-card-desc">Product, barcode, and problem details.</p>
+          <p className="wpsd-card-desc">Warranty/barcode and problem details.</p>
         </div>
         <div className="wpsd-card-content wpsd-form-grid">
-      {errors.product && <p className="wpsd-error">{errors.product}</p>}
-      {field('product_id', 'Product *', (
-        <div className="wpsd-combobox">
-          <input
-            className="wpsd-input"
-            role="combobox"
-            aria-expanded={productOpen}
-            value={productSearch}
-            onChange={(e) => { setProductSearch(e.target.value); setProductOpen(true); if (form.product_id) onProduct(''); }}
-            onFocus={() => setProductOpen(true)}
-            onBlur={() => setProductOpen(false)}
-            onKeyDown={onProductKeyDown}
-            placeholder="Search and select a product…"
-            autoComplete="off"
-          />
-          {productOpen && (
-            <div className="wpsd-combobox-panel">
-              {products.length === 0 ? (
-                <div className="wpsd-combobox-empty">{productSearch ? 'No matching products.' : 'Type to search…'}</div>
-              ) : products.map((p, i) => (
-                <div
-                  key={p.id}
-                  className={`wpsd-combobox-option${i === productActive ? ' is-active' : ''}${String(p.id) === form.product_id ? ' is-selected' : ''}`}
-                  onMouseDown={(e) => { e.preventDefault(); selectProduct(p); }}
-                  onMouseEnter={() => setProductActive(i)}
-                >
-                  {productLabel(p)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ), 'Type to search the WooCommerce catalog, then pick a result.')}
-      {field('barcode', 'Barcode (optional)', <input className="wpsd-input" value={form.barcode || ''} onChange={set('barcode')} maxLength={120} />)}
+      {field('warranty_id', 'Barcode/Warranty ID', <input className="wpsd-input" value={form.warranty_id || ''} onChange={set('warranty_id')} maxLength={120} />)}
       {field('problem_description', 'Problem *', <input className="wpsd-input" value={form.problem_description || ''} onChange={set('problem_description')} maxLength={500} placeholder="Describe the problem" />)}
       {field('priority', 'Priority', (
         <select className="wpsd-input" value={form.priority || 'med'} onChange={set('priority')}>

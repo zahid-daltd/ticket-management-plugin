@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Affiniti Support API</title>
+<meta name="description" content="Integration reference for the Affiniti Support (wpsd/v1) REST API: authentication, endpoints, rate limits, and ready-to-use examples for Postman, Insomnia, and curl." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ===================== Design tokens ===================== */
+  :root {
+    --paper: #eef2f1;
+    --surface: #ffffff;
+    --surface-2: #f5f7f6;
+    --ink: #101a1c;
+    --ink-soft: #435055;
+    --ink-faint: #7c8a8d;
+    --border: #d7dfdd;
+    --border-soft: #e4eae8;
+    --accent: #0f6e63;
+    --accent-ink: #ffffff;
+    --accent-soft: #e1f0ec;
+    --warn: #a15c07;
+    --warn-soft: #fbeed9;
+    --danger: #a3402d;
+    --danger-soft: #fbe6e1;
+    --code-bg: #0f1a1c;
+    --code-ink: #dfece9;
+    --code-border: #1d2c2e;
+
+    --http-get: #2563a6;
+    --http-get-soft: #e3eefa;
+    --http-post: #0f766e;
+    --http-post-soft: #dff2ef;
+    --http-patch: #a15c07;
+    --http-patch-soft: #fbeed9;
+    --http-put: #6d5a1f;
+    --http-put-soft: #f3edd8;
+    --http-delete: #a3402d;
+    --http-delete-soft: #fbe6e1;
+
+    --shadow-1: 0 1px 2px rgba(16, 26, 28, 0.06);
+    --shadow-2: 0 8px 24px -8px rgba(16, 26, 28, 0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0c1315;
+      --surface: #121b1d;
+      --surface-2: #16211f;
+      --ink: #eaf1ef;
+      --ink-soft: #aebcb9;
+      --ink-faint: #7d8c8a;
+      --border: #263332;
+      --border-soft: #1e2a29;
+      --accent: #4fb3a3;
+      --accent-ink: #06120f;
+      --accent-soft: #16302c;
+      --warn: #e0a94f;
+      --warn-soft: #2e2412;
+      --danger: #e2836d;
+      --danger-soft: #301a15;
+      --code-bg: #060a0b;
+      --code-ink: #d7e7e3;
+      --code-border: #1a2523;
+
+      --http-get: #7fb4e8;
+      --http-get-soft: #132535;
+      --http-post: #5fc9bb;
+      --http-post-soft: #102620;
+      --http-patch: #e0a94f;
+      --http-patch-soft: #2e2412;
+      --http-put: #cdb96a;
+      --http-put-soft: #2a2717;
+      --http-delete: #e2836d;
+      --http-delete-soft: #301a15;
+
+      --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-2: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0c1315;
+    --surface: #121b1d;
+    --surface-2: #16211f;
+    --ink: #eaf1ef;
+    --ink-soft: #aebcb9;
+    --ink-faint: #7d8c8a;
+    --border: #263332;
+    --border-soft: #1e2a29;
+    --accent: #4fb3a3;
+    --accent-ink: #06120f;
+    --accent-soft: #16302c;
+    --warn: #e0a94f;
+    --warn-soft: #2e2412;
+    --danger: #e2836d;
+    --danger-soft: #301a15;
+    --code-bg: #060a0b;
+    --code-ink: #d7e7e3;
+    --code-border: #1a2523;
+
+    --http-get: #7fb4e8;
+    --http-get-soft: #132535;
+    --http-post: #5fc9bb;
+    --http-post-soft: #102620;
+    --http-patch: #e0a94f;
+    --http-patch-soft: #2e2412;
+    --http-put: #cdb96a;
+    --http-put-soft: #2a2717;
+    --http-delete: #e2836d;
+    --http-delete-soft: #301a15;
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+  }
+
+  /* ===================== Base ===================== */
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.65;
+  }
+  h1, h2, h3, h4 {
+    font-family: "Newsreader", Georgia, serif;
+    color: var(--ink);
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  a { color: var(--accent); }
+  code, pre, .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
+  ::selection { background: var(--accent-soft); }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* ===================== Shell ===================== */
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px 96px;
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    gap: 48px;
+  }
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; padding: 0 18px 72px; }
+  }
+
+  /* ---- Masthead ---- */
+  .masthead {
+    grid-column: 1 / -1;
+    padding: 56px 0 36px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .masthead h1 { font-size: 2.35rem; font-weight: 600; }
+  .masthead .lede {
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: 1.02rem;
+  }
+  .base-url-row {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .base-url {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13.5px;
+    box-shadow: var(--shadow-1);
+  }
+  .base-url .tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  /* ---- Sidebar ---- */
+  .toc {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    padding-right: 4px;
+    padding-top: 40px;
+  }
+  @media (max-width: 900px) {
+    .toc { position: static; max-height: none; padding-top: 24px; }
+  }
+  .toc-group { margin-bottom: 22px; }
+  .toc-group-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+  .toc a {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    text-decoration: none;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    padding: 5px 0;
+    border-left: 2px solid transparent;
+    padding-left: 10px;
+    margin-left: -11px;
+  }
+  .toc a:hover { color: var(--ink); }
+  .toc a .m {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    flex: none;
+  }
+
+  /* ---- Main column ---- */
+  main { min-width: 0; padding-top: 40px; }
+  section { margin-bottom: 64px; scroll-margin-top: 20px; }
+  section > h2 { font-size: 1.55rem; font-weight: 600; margin-bottom: 6px; }
+  section > .section-desc { color: var(--ink-soft); max-width: 68ch; margin-bottom: 24px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-1);
+    padding: 22px 24px;
+  }
+  .card + .card { margin-top: 16px; }
+
+  .callout {
+    border-radius: 10px;
+    padding: 16px 18px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .callout .glyph { font-family: "IBM Plex Mono", monospace; font-weight: 700; flex: none; margin-top: 1px; }
+  .callout.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, var(--border)); }
+  .callout.warn .glyph { color: var(--warn); }
+  .callout.tip { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+  .callout.tip .glyph { color: var(--accent); }
+  .callout.danger { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); }
+  .callout.danger .glyph { color: var(--danger); }
+  .callout p { margin: 0 0 6px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout ul { margin: 6px 0 0; padding-left: 18px; }
+
+  /* ---- Endpoint block ---- */
+  .endpoint { margin-bottom: 36px; scroll-margin-top: 20px; }
+  .endpoint-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .method {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    padding: 4px 9px;
+    border-radius: 6px;
+    flex: none;
+  }
+  .method.get { color: var(--http-get); background: var(--http-get-soft); }
+  .method.post { color: var(--http-post); background: var(--http-post-soft); }
+  .method.patch { color: var(--http-patch); background: var(--http-patch-soft); }
+  .method.put { color: var(--http-put); background: var(--http-put-soft); }
+  .method.delete { color: var(--http-delete); background: var(--http-delete-soft); }
+  .path {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 14.5px;
+    font-weight: 500;
+    word-break: break-word;
+  }
+  .endpoint-summary { color: var(--ink-soft); font-size: 14px; margin: 6px 0 14px; max-width: 66ch; }
+
+  .auth-pills { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 16px; }
+  .pill {
+    font-size: 11.5px;
+    font-family: "IBM Plex Mono", monospace;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--ink-soft);
+    background: var(--surface-2);
+  }
+  .pill.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--accent-soft); }
+
+  /* ---- Tables ---- */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 460px; }
+  thead th {
+    text-align: left;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    background: var(--surface-2);
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td code, .fname { font-size: 12.5px; color: var(--accent); white-space: nowrap; }
+  td .req { color: var(--danger); font-weight: 600; }
+  .tbl-wrap + .tbl-wrap, .tbl-wrap + p, p + .tbl-wrap { margin-top: 14px; }
+
+  /* ---- Code panels ---- */
+  .code-panel { position: relative; margin: 14px 0; }
+  .code-panel .code-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+    display: block;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    border: 1px solid var(--code-border);
+    border-radius: 10px;
+    padding: 16px 44px 16px 18px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 0;
+    tab-size: 2;
+  }
+  pre .c1 { color: #7d8c8a; }
+  pre .k { color: #7fb4e8; }
+  pre .s { color: #a8d8c9; }
+  pre .n { color: #e0a94f; }
+  .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--code-ink);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    padding: 4px 9px;
+    cursor: pointer;
+  }
+  .copy-btn:hover { background: rgba(255, 255, 255, 0.16); }
+  .copy-btn:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+  hr.rule { border: none; border-top: 1px solid var(--border); margin: 8px 0 32px; }
+
+  footer {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+    color: var(--ink-faint);
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .endpoint, .card { transition: box-shadow 0.15s ease; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="masthead">
+    <span class="eyebrow">Integration reference | wpsd/v1</span>
+    <h1>Affiniti Support API</h1>
+    <p class="lede">Everything an external tool needs to create and read support tickets against a running Affiniti Support install - authentication, endpoints, rate limits, and copy-paste examples for Postman, Insomnia, and curl.</p>
+    <div class="base-url-row">
+      <span class="base-url"><span class="tag">Base URL</span><code>https://&lt;your-site&gt;/wp-json/wpsd/v1/</code></span>
+      <span class="base-url"><span class="tag">Format</span><code>JSON</code></span>
+      <span class="base-url"><span class="tag">Auth</span><code>X-WPSD-API-Key / X-WPSD-API-Secret</code></span>
+    </div>
+  </div>
+
+  <nav class="toc" aria-label="Table of contents">
+    <div class="toc-group">
+      <div class="toc-group-label">Start here</div>
+      <a href="#quickstart">Quick start</a>
+      <a href="#auth">Authentication</a>
+      <a href="#tools">Postman &amp; Insomnia</a>
+      <a href="#envelope">Response envelope</a>
+      <a href="#errors">Error codes</a>
+      <a href="#limits">Rate limits</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-group-label">Tickets</div>
+      <a href="#create-ticket"><span class="m" style="color:var(--http-post);background:var(--http-post-soft)">POST</span>Create</a>
+      <a href="#read-by-number"><span class="m" style="color:var(--http-get);background:var(--http-get-soft)">GET</span>By number</a>
+      <a href="#read-by-id"><span class="m" style="color:var(--http-get);background:var(--http-get-soft)">GET</span>By id + phone</a>
+      <a href="#list-tickets"><span class="m" style="color:var(--http-get);background:var(--http-get-soft)">GET</span>List / search</a>
+      <a href="#update-ticket"><span class="m" style="color:var(--http-patch);background:var(--http-patch-soft)">PATCH</span>Update</a>
+      <a href="#delete-ticket"><span class="m" style="color:var(--http-delete);background:var(--http-delete-soft)">DEL</span>Delete</a>
+      <a href="#replies"><span class="m" style="color:var(--http-post);background:var(--http-post-soft)">POST</span>Replies</a>
+      <a href="#attachments"><span class="m" style="color:var(--http-post);background:var(--http-post-soft)">POST</span>Attachments</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-group-label">Lookups</div>
+      <a href="#other-lookups"><span class="m" style="color:var(--http-get);background:var(--http-get-soft)">GET</span>Legacy lookups</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-group-label">Reference</div>
+      <a href="#ticket-object">Ticket object</a>
+      <a href="#admin-only">Admin-only routes</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <section id="quickstart">
+      <h2>Quick start</h2>
+      <p class="section-desc">The fastest path to a working integration: get a key pair from a staff member, then create your first ticket.</p>
+
+      <div class="card">
+        <p><strong>1. Get an API key/secret pair.</strong> A staff member generates one from <strong>wp-admin -> Affiniti Support -> API Keys</strong>. The secret is shown once at creation - store it immediately, it cannot be retrieved again. Up to 2 keys can exist at a time; revoke one to make room for another.</p>
+        <p style="margin-top:12px"><strong>2. Create the ticket.</strong> No product lookup needed - a ticket only needs the customer's contact details and the problem.</p>
+        <div class="code-panel">
+          <span class="code-label">curl</span>
+          <pre><button class="copy-btn" type="button">Copy</button><span class="k">curl</span> -X POST <span class="s">"https://your-site.com/wp-json/wpsd/v1/tickets"</span> \
+  -H <span class="s">"Content-Type: application/json"</span> \
+  -H <span class="s">"X-WPSD-API-Key: wpsd_xxxxxxxxxxxxxxxx"</span> \
+  -H <span class="s">"X-WPSD-API-Secret: wpss_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"</span> \
+  -d <span class="s">'{
+    "customer_name": "Rahim Uddin",
+    "mobile": "01712345678",
+    "address": "House 5, Road 2, Dhanmondi, Dhaka",
+    "warranty_id": "WR-88213",
+    "problem_description": "Fridge is not cooling since yesterday"
+  }'</span></pre>
+        </div>
+        <p style="margin-top:12px">A successful call returns <code>201</code> with the new ticket, including its human-readable <code>ticket_number</code> (e.g. <code>TKT-2026-00042</code>) - give that to your customer.</p>
+      </div>
+    </section>
+
+    <section id="auth">
+      <h2>Authentication</h2>
+      <p class="section-desc">The API recognizes three separate callers. Pick the one that matches what you're building - they are never interchangeable.</p>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Caller</th><th>Mechanism</th><th>Use for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>External tool</strong> <span class="pill on" style="margin-left:6px">this doc</span></td>
+              <td><code>X-WPSD-API-Key</code> + <code>X-WPSD-API-Secret</code> headers</td>
+              <td>Any integration outside WordPress itself - CRMs, call-center tools, Postman, scripts.</td>
+            </tr>
+            <tr>
+              <td>Staff (admin app)</td>
+              <td>WordPress cookie + <code>X-WP-Nonce</code></td>
+              <td>The plugin's own React admin screen. Not usable outside a logged-in browser session.</td>
+            </tr>
+            <tr>
+              <td>Guest web form</td>
+              <td><code>wpsd_nonce</code> body/query param</td>
+              <td>The plugin's own public ticket-submission shortcode. Single-page-load lifetime, not for external use.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:1.05rem;margin:28px 0 10px;font-weight:600">Sending the API key</h3>
+      <p>Every authenticated request carries two headers:</p>
+      <div class="code-panel">
+        <span class="code-label">headers</span>
+        <pre><button class="copy-btn" type="button">Copy</button><span class="n">X-WPSD-API-Key</span>: wpsd_43844b7156c95fd3cae0095a320efbbe
+<span class="n">X-WPSD-API-Secret</span>: wpss_7bd505671070f65858f79451108408d7188754852772ef916ddba21cfd2889</pre>
+      </div>
+
+      <div class="callout warn" style="margin-top:16px">
+        <span class="glyph">!</span>
+        <div>
+          <p><strong>HTTPS is required</strong> for API-key requests on any real domain. It's automatically relaxed for local dev hosts - <code>localhost</code>, <code>127.0.0.1</code>, and any <code>.local</code>/<code>.test</code> domain - so you can build and test from Postman without a certificate.</p>
+        </div>
+      </div>
+
+      <h3 style="font-size:1.05rem;margin:28px 0 10px;font-weight:600">Scopes</h3>
+      <p>Each key is created with one scope, set by the staff member who generated it. It governs read/list access only - every key can always create tickets.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Scope</th><th>Create</th><th>Read one ticket</th><th>List / search</th></tr></thead>
+          <tbody>
+            <tr><td><code>create_only</code> <span style="color:var(--ink-faint)">(default)</span></td><td>Yes</td><td>-</td><td>-</td></tr>
+            <tr><td><code>create_and_read</code></td><td>Yes</td><td>Yes</td><td>-</td></tr>
+            <tr><td><code>full</code></td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:1.05rem;margin:28px 0 10px;font-weight:600">Optional: request signing (HMAC)</h3>
+      <p>For callers that want replay protection on top of the key/secret, add two more headers. When either is present, both are checked:</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Header</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><code>X-WPSD-Timestamp</code></td><td>Current Unix time (seconds). Must be within 5 minutes of the server clock.</td></tr>
+            <tr><td><code>X-WPSD-Signature</code></td><td><code>hex(HMAC-SHA256(timestamp + "." + raw_request_body, api_secret))</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-panel">
+        <span class="code-label">node.js - signing example</span>
+        <pre><button class="copy-btn" type="button">Copy</button><span class="k">const</span> crypto = <span class="k">require</span>(<span class="s">'crypto'</span>);
+<span class="k">const</span> timestamp = Math.floor(<span class="k">Date</span>.now() / <span class="n">1000</span>).toString();
+<span class="k">const</span> body = JSON.stringify(payload);
+<span class="k">const</span> signature = crypto
+  .createHmac(<span class="s">'sha256'</span>, apiSecret)
+  .update(<span class="s">`${</span>timestamp<span class="s">}.${</span>body<span class="s">}`</span>)
+  .digest(<span class="s">'hex'</span>);
+<span class="c1">// send X-WPSD-Timestamp: timestamp, X-WPSD-Signature: signature</span></pre>
+      </div>
+    </section>
+
+    <section id="tools">
+      <h2>Postman &amp; Insomnia</h2>
+      <p class="section-desc">One thing trips up almost every integrator on their first request - read this before you open a support thread about it.</p>
+
+      <div class="callout danger">
+        <span class="glyph">X</span>
+        <div>
+          <p><strong>Do not use the "Basic Auth" tab in your HTTP client.</strong> WordPress core intercepts any <code>Authorization: Basic</code> header before your request reaches this plugin at all, and rejects it unless the username happens to match a real WordPress login with a matching Application Password. It has nothing to do with your API key.</p>
+        </div>
+      </div>
+
+      <p style="margin-top:18px"><strong>Correct setup in Postman:</strong></p>
+      <ol style="padding-left:20px; color:var(--ink-soft)">
+        <li>Authorization tab -> Type -> <strong>No Auth</strong>.</li>
+        <li>Headers tab -> add <code>X-WPSD-API-Key</code> and <code>X-WPSD-API-Secret</code> as plain header rows.</li>
+        <li>For <code>POST</code>/<code>PATCH</code> requests, set <code>Content-Type: application/json</code> and put the JSON body under Body -> raw -> JSON.</li>
+      </ol>
+      <p>"No Auth" doesn't mean unauthenticated - it just tells Postman not to auto-generate its own <code>Authorization</code> header. Your two <code>X-WPSD-*</code> headers are the real credentials, checked entirely by this plugin.</p>
+    </section>
+
+    <section id="envelope">
+      <h2>Response envelope</h2>
+      <p class="section-desc">Every response - success or failure - is shaped the same way, on every endpoint.</p>
+      <div class="two-col">
+        <div class="code-panel">
+          <span class="code-label">200 / 201 - success</span>
+          <pre><button class="copy-btn" type="button">Copy</button>{
+  <span class="n">"success"</span>: <span class="k">true</span>,
+  <span class="n">"data"</span>: { <span class="c1">...</span> },
+  <span class="n">"error"</span>: <span class="k">null</span>
+}</pre>
+        </div>
+        <div class="code-panel">
+          <span class="code-label">4xx / 5xx - failure</span>
+          <pre><button class="copy-btn" type="button">Copy</button>{
+  <span class="n">"success"</span>: <span class="k">false</span>,
+  <span class="n">"data"</span>: <span class="k">null</span>,
+  <span class="n">"error"</span>: {
+    <span class="n">"code"</span>: <span class="s">"wpsd_not_found"</span>,
+    <span class="n">"message"</span>: <span class="s">"Ticket not found."</span>
+  }
+}</pre>
+        </div>
+      </div>
+      <p>Field-level validation failures put a <code>fields</code> object under <code>data</code> instead of <code>null</code>:</p>
+      <div class="code-panel">
+        <span class="code-label">validation error</span>
+        <pre><button class="copy-btn" type="button">Copy</button>{
+  <span class="n">"success"</span>: <span class="k">false</span>,
+  <span class="n">"data"</span>: { <span class="n">"fields"</span>: { <span class="n">"mobile"</span>: <span class="s">"Mobile number must be a valid Bangladeshi number (e.g. 01712345678)."</span> } },
+  <span class="n">"error"</span>: { <span class="n">"code"</span>: <span class="s">"wpsd_validation_failed"</span>, <span class="n">"message"</span>: <span class="s">"Validation failed."</span> }
+}</pre>
+      </div>
+      <div class="callout warn">
+        <span class="glyph">!</span>
+        <div><p><strong>Known quirk:</strong> <code>wpsd_validation_failed</code> responses currently arrive with HTTP status <code>200</code> instead of <code>400</code>, even though <code>success</code> is correctly <code>false</code>. Always branch on the <code>success</code> field, not the HTTP status code alone - this is on the fix list but not yet shipped.</p></div>
+      </div>
+    </section>
+
+    <section id="errors">
+      <h2>Error codes</h2>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Status</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>wpsd_validation_failed</code></td><td>200*</td><td>One or more fields failed validation - see <code>data.fields</code>. *See quirk above.</td></tr>
+            <tr><td><code>wpsd_bad_nonce</code></td><td>403</td><td>Guest/web create was missing or had an invalid <code>wpsd_nonce</code>.</td></tr>
+            <tr><td><code>wpsd_duplicate_ticket</code></td><td>409</td><td>Same mobile + same problem description submitted again within 10 minutes.</td></tr>
+            <tr><td><code>wpsd_rate_limited</code></td><td>429</td><td>Too many requests - see <code>Retry-After</code> header.</td></tr>
+            <tr><td><code>wpsd_unauthorized</code></td><td>401</td><td>Missing, unknown, or incorrect API key/secret.</td></tr>
+            <tr><td><code>wpsd_https_required</code></td><td>403</td><td>API-key request over plain HTTP on a non-local domain.</td></tr>
+            <tr><td><code>wpsd_forbidden</code></td><td>401/403</td><td>Authenticated, but this scope/capability can't do that.</td></tr>
+            <tr><td><code>wpsd_owner_required</code></td><td>403</td><td>Guest ticket read with no mobile/phone provided to prove ownership.</td></tr>
+            <tr><td><code>wpsd_not_found</code></td><td>404</td><td>No ticket / resource with that identifier.</td></tr>
+            <tr><td><code>wpsd_limit_reached</code></td><td>409</td><td>The API-client cap (2 by default) is already full.</td></tr>
+            <tr><td><code>wpsd_in_use</code></td><td>409</td><td>Admin tried to delete a lookup row a ticket still references.</td></tr>
+            <tr><td><code>wpsd_db_error</code></td><td>500</td><td>Write failed on the server side. Safe to retry.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limits">
+      <h2>Rate limits</h2>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Caller</th><th>Limit</th><th>Window</th></tr></thead>
+          <tbody>
+            <tr><td>Guest web form - per IP</td><td>10 submissions</td><td>1 hour</td></tr>
+            <tr><td>Guest web form - per mobile number</td><td>5 submissions</td><td>1 hour</td></tr>
+            <tr><td>Each API key</td><td>configurable per key, default 60/min (max 1000/min)</td><td>1 minute</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A rate-limited response is <code>429 wpsd_rate_limited</code> with a <code>Retry-After</code> header telling you how many seconds to wait.</p>
+    </section>
+
+    <hr class="rule" />
+
+    <section id="create-ticket" class="endpoint">
+      <div class="endpoint-head"><span class="method post">POST</span><span class="path">/tickets</span></div>
+      <p class="endpoint-summary">Create a ticket. The single entry point for guests, the admin app, and external tools alike - validation is identical for all three.</p>
+      <div class="auth-pills"><span class="pill on">API key</span><span class="pill">Staff cookie</span><span class="pill">Guest nonce</span></div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="fname">customer_name</td><td>string</td><td class="req">yes</td><td>2-150 characters.</td></tr>
+            <tr><td class="fname">mobile</td><td>string</td><td class="req">yes</td><td>Bangladeshi format: <code>01XXXXXXXXX</code> or <code>+8801XXXXXXXXX</code>.</td></tr>
+            <tr><td class="fname">alternative_mobile</td><td>string</td><td>no</td><td>Same format as <code>mobile</code> when present.</td></tr>
+            <tr><td class="fname">problem_description</td><td>string</td><td class="req">yes</td><td>3-500 characters, free text.</td></tr>
+            <tr><td class="fname">address</td><td>string</td><td class="req">yes</td><td>Up to 500 characters, free text.</td></tr>
+            <tr><td class="fname">warranty_id</td><td>string</td><td>no</td><td>Barcode or warranty id. Up to 120 characters.</td></tr>
+            <tr><td class="fname">comments</td><td>string</td><td>no</td><td>Up to 2000 characters. Basic HTML is preserved.</td></tr>
+            <tr><td class="fname">priority</td><td>string</td><td>no</td><td><code>low</code> / <code>med</code> / <code>high</code>. Defaults to <code>med</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="code-panel">
+        <span class="code-label">request</span>
+        <pre><button class="copy-btn" type="button">Copy</button><span class="k">POST</span> /wp-json/wpsd/v1/tickets
+<span class="n">X-WPSD-API-Key</span>: wpsd_xxxxxxxxxxxxxxxx
+<span class="n">X-WPSD-API-Secret</span>: wpss_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+<span class="n">Content-Type</span>: application/json
+
+{
+  <span class="n">"customer_name"</span>: <span class="s">"Rahim Uddin"</span>,
+  <span class="n">"mobile"</span>: <span class="s">"01712345678"</span>,
+  <span class="n">"address"</span>: <span class="s">"House 5, Road 2, Dhanmondi, Dhaka"</span>,
+  <span class="n">"warranty_id"</span>: <span class="s">"WR-88213"</span>,
+  <span class="n">"problem_description"</span>: <span class="s">"Fridge is not cooling since yesterday"</span>,
+  <span class="n">"priority"</span>: <span class="s">"high"</span>
+}</pre>
+      </div>
+      <div class="code-panel">
+        <span class="code-label">201 response</span>
+        <pre><button class="copy-btn" type="button">Copy</button>{
+  <span class="n">"success"</span>: <span class="k">true</span>,
+  <span class="n">"data"</span>: { <span class="n">"ticket"</span>: {
+    <span class="n">"id"</span>: <span class="s">"42"</span>, <span class="n">"ticket_number"</span>: <span class="s">"TKT-2026-00042"</span>,
+    <span class="n">"customer_name"</span>: <span class="s">"Rahim Uddin"</span>, <span class="n">"mobile"</span>: <span class="s">"01712345678"</span>,
+    <span class="n">"address"</span>: <span class="s">"House 5, Road 2, Dhanmondi, Dhaka"</span>,
+    <span class="n">"warranty_id"</span>: <span class="s">"WR-88213"</span>,
+    <span class="n">"problem_description"</span>: <span class="s">"Fridge is not cooling since yesterday"</span>,
+    <span class="n">"status"</span>: <span class="s">"new"</span>, <span class="n">"priority"</span>: <span class="s">"high"</span>, <span class="n">"source"</span>: <span class="s">"api"</span>,
+    <span class="n">"created_at"</span>: <span class="s">"2026-09-27 10:15:02"</span>
+  } },
+  <span class="n">"error"</span>: <span class="k">null</span>
+}</pre>
+      </div>
+      <p>Note the <code>wpsd_duplicate_ticket</code> guard: submitting the same <code>mobile</code> + <code>problem_description</code> again within 10 minutes returns <code>409</code> instead of creating a second ticket - useful, but don't mistake it for a bug if you're testing with a fixed payload.</p>
+    </section>
+
+    <section id="read-by-number" class="endpoint">
+      <div class="endpoint-head"><span class="method get">GET</span><span class="path">/tickets/{ticket_number}?mobile=</span></div>
+      <p class="endpoint-summary">Look up a ticket by its public number. A customer-facing "check my ticket status" endpoint.</p>
+      <div class="auth-pills"><span class="pill on">API key (create_and_read+)</span><span class="pill">Staff cookie</span><span class="pill on">Guest + mobile</span></div>
+      <p>With an API key of scope <code>create_and_read</code> or <code>full</code>, <code>mobile</code> isn't required - the key itself is the authorization. Without a key, the caller must supply the <code>mobile</code> the ticket was created with; a mismatch returns a deliberately generic <code>403</code> so ticket numbers can't be brute-forced against arbitrary phone numbers.</p>
+      <div class="code-panel">
+        <span class="code-label">curl</span>
+        <pre><button class="copy-btn" type="button">Copy</button><span class="k">curl</span> <span class="s">"https://your-site.com/wp-json/wpsd/v1/tickets/TKT-2026-00042"</span> \
+  -H <span class="s">"X-WPSD-API-Key: wpsd_xxxxxxxxxxxxxxxx"</span> \
+  -H <span class="s">"X-WPSD-API-Secret: wpss_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"</span></pre>
+      </div>
+    </section>
+
+    <section id="read-by-id" class="endpoint">
+      <div class="endpoint-head"><span class="method get">GET</span><span class="path">/tickets?id=&amp;phone_number=</span></div>
+      <p class="endpoint-summary">The same guest lookup as above, but keyed by the numeric ticket id and parameter name <code>phone_number</code> instead. No credentials needed - ownership is proven by the phone match.</p>
+      <div class="auth-pills"><span class="pill on">None (phone match required)</span></div>
+      <div class="code-panel">
+        <span class="code-label">curl</span>
+        <pre><button class="copy-btn" type="button">Copy</button><span class="k">curl</span> <span class="s">"https://your-site.com/wp-json/wpsd/v1/tickets?id=42&phone_number=01712345678"</span></pre>
+      </div>
+      <p>A wrong <code>phone_number</code> returns <code>403</code>; a nonexistent <code>id</code> returns <code>404</code>. Both are deliberately terse to avoid id enumeration.</p>
+    </section>
+
+    <section id="list-tickets" class="endpoint">
+      <div class="endpoint-head"><span class="method get">GET</span><span class="path">/tickets</span></div>
+      <p class="endpoint-summary">Paginated ticket search - enumerating the whole system. Restricted to staff and <code>full</code>-scope keys only; partner integrations never get a free listing by default.</p>
+      <div class="auth-pills"><span class="pill on">API key (full scope only)</span><span class="pill">Staff cookie</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Query param</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="fname">status</td><td>One of <code>new</code>, <code>assigned</code>, <code>in_progress</code>, <code>resolved</code>, <code>closed</code>, <code>cancelled</code>.</td></tr>
+            <tr><td class="fname">assigned_agent_id</td><td>Filter to one staff user id.</td></tr>
+            <tr><td class="fname">search</td><td>Matches ticket number, customer name, or mobile.</td></tr>
+            <tr><td class="fname">page</td><td>Default <code>1</code>.</td></tr>
+            <tr><td class="fname">per_page</td><td>Default 20, max 100.</td></tr>
+            <tr><td class="fname">orderby</td><td><code>id</code>, <code>created_at</code>, <code>updated_at</code>, <code>status</code>, or <code>priority</code>.</td></tr>
+            <tr><td class="fname">order</td><td><code>asc</code> or <code>desc</code> (default).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-panel">
+        <span class="code-label">200 response shape</span>
+        <pre><button class="copy-btn" type="button">Copy</button>{ <span class="n">"success"</span>: <span class="k">true</span>, <span class="n">"data"</span>: {
+  <span class="n">"items"</span>: [ <span class="c1">/* ticket objects */</span> ],
+  <span class="n">"total"</span>: <span class="n">137</span>, <span class="n">"page"</span>: <span class="n">1</span>, <span class="n">"per_page"</span>: <span class="n">20</span>, <span class="n">"total_pages"</span>: <span class="n">7</span>
+}, <span class="n">"error"</span>: <span class="k">null</span> }</pre>
+      </div>
+    </section>
+
+    <section id="update-ticket" class="endpoint">
+      <div class="endpoint-head"><span class="method patch">PATCH</span><span class="path">/tickets/{id}</span></div>
+      <p class="endpoint-summary">Update a ticket. Staff-only in this version - not exposed to external API clients, so this route always needs a logged-in WordPress session.</p>
+      <div class="auth-pills"><span class="pill">Staff cookie only</span></div>
+      <p>Send only the fields you're changing. <code>assigned_agent_id</code> additionally requires the assign capability.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="fname">status</td><td>See the status list above.</td></tr>
+            <tr><td class="fname">priority</td><td><code>low</code> / <code>med</code> / <code>high</code>.</td></tr>
+            <tr><td class="fname">assigned_agent_id</td><td>A WordPress user id with ticket-view rights, or <code>null</code> to unassign.</td></tr>
+            <tr><td class="fname">customer_name, mobile, alternative_mobile, address, warranty_id, comments, problem_description</td><td>Same rules as on create.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="delete-ticket" class="endpoint">
+      <div class="endpoint-head"><span class="method delete">DELETE</span><span class="path">/tickets/{id}</span></div>
+      <p class="endpoint-summary">Permanently delete a ticket. Requires the delete capability - administrators only, not regular agents.</p>
+      <div class="auth-pills"><span class="pill">Staff cookie only</span></div>
+    </section>
+
+    <section id="replies" class="endpoint">
+      <div class="endpoint-head"><span class="method post">POST</span><span class="path">/tickets/{id}/replies</span></div>
+      <p class="endpoint-summary">Add a message to a ticket's thread. Staff-only in this version.</p>
+      <div class="auth-pills"><span class="pill">Staff cookie only</span></div>
+      <div class="code-panel">
+        <span class="code-label">body</span>
+        <pre><button class="copy-btn" type="button">Copy</button>{ <span class="n">"message"</span>: <span class="s">"We've dispatched a technician for tomorrow morning."</span>, <span class="n">"is_internal_note"</span>: <span class="k">false</span> }</pre>
+      </div>
+      <p><code>is_internal_note</code> is silently forced to <code>false</code> for anyone without the manage-tickets capability - a note author can't accidentally (or deliberately) mark something internal if they aren't staff.</p>
+    </section>
+
+    <section id="attachments" class="endpoint">
+      <div class="endpoint-head"><span class="method post">POST</span><span class="path">/tickets/{id}/attachments</span></div>
+      <p class="endpoint-summary">Attach a file to a ticket - <code>multipart/form-data</code>, not JSON.</p>
+      <div class="auth-pills"><span class="pill">Staff cookie only</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="fname">file</td><td>JPG, PNG, WEBP, or PDF. 5 MB max.</td></tr>
+            <tr><td class="fname">reply_id</td><td>Optional - attach to a specific reply rather than the ticket generally.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-panel">
+        <span class="code-label">curl</span>
+        <pre><button class="copy-btn" type="button">Copy</button><span class="k">curl</span> -X POST <span class="s">"https://your-site.com/wp-json/wpsd/v1/tickets/42/attachments"</span> \
+  -H <span class="s">"X-WP-Nonce: ..."</span> --cookie <span class="s">"..."</span> \
+  -F <span class="s">"file=@photo.jpg"</span></pre>
+      </div>
+    </section>
+
+    <hr class="rule" />
+
+    <section id="other-lookups" class="endpoint">
+      <div class="endpoint-head"><span class="path">/lookups/products | /districts | /thanas | /routes | /service-centers | /problem-types</span></div>
+      <p class="endpoint-summary">Legacy reference data - WooCommerce product search plus Bangladesh administrative-area and problem-category lookups. These predate the current ticket form and are no longer required for ticket creation - <code>product_id</code>/<code>district_id</code>/<code>thana_id</code>/<code>route_id</code>/<code>service_center_id</code> are accepted for backward compatibility but always read back as <code>0</code> on new tickets. Left here for completeness; safe to ignore in a new integration.</p>
+    </section>
+
+    <hr class="rule" />
+
+    <section id="ticket-object">
+      <h2>The ticket object</h2>
+      <p class="section-desc">The full shape returned by every endpoint above that includes a <code>ticket</code>.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="fname">id</td><td>string</td><td>Numeric row id, as a string.</td></tr>
+            <tr><td class="fname">ticket_number</td><td>string</td><td>Public identifier, e.g. <code>TKT-2026-00042</code>.</td></tr>
+            <tr><td class="fname">customer_name</td><td>string</td><td></td></tr>
+            <tr><td class="fname">mobile / alternative_mobile</td><td>string</td><td>Normalized to <code>01XXXXXXXXX</code>.</td></tr>
+            <tr><td class="fname">address</td><td>string</td><td>Free-text, up to 500 characters.</td></tr>
+            <tr><td class="fname">warranty_id</td><td>string or null</td><td>Barcode or warranty id. Optional.</td></tr>
+            <tr><td class="fname">problem_description</td><td>string</td><td>Free text.</td></tr>
+            <tr><td class="fname">comments</td><td>string or null</td><td>Optional.</td></tr>
+            <tr><td class="fname">status</td><td>string</td><td><code>new</code> | <code>assigned</code> | <code>in_progress</code> | <code>resolved</code> | <code>closed</code> | <code>cancelled</code></td></tr>
+            <tr><td class="fname">priority</td><td>string</td><td><code>low</code> | <code>med</code> | <code>high</code></td></tr>
+            <tr><td class="fname">assigned_agent_id</td><td>integer or null</td><td>WordPress user id.</td></tr>
+            <tr><td class="fname">source</td><td>string</td><td><code>web</code> (guest/admin) or <code>api</code> (external key).</td></tr>
+            <tr><td class="fname">created_at / updated_at</td><td>string</td><td><code>YYYY-MM-DD HH:MM:SS</code>, site timezone.</td></tr>
+            <tr><td class="fname">product_id / district_id / thana_id / route_id / service_center_id / problem_type_id</td><td>string</td><td>Legacy - always <code>"0"</code> on new tickets. Ignore.</td></tr>
+            <tr><td class="fname">brand_snapshot / product_name_snapshot</td><td>string</td><td>Legacy - always <code>""</code> on new tickets. Ignore.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="admin-only">
+      <h2>Admin-only routes</h2>
+      <p class="section-desc">These exist to power the plugin's own wp-admin screens. They require a logged-in staff session (cookie + nonce) and are not meant for external API clients - listed here only so nothing in the namespace is a surprise.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Route</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td class="fname">/admin/api-clients</td><td>List / create API keys (the ones this doc uses).</td></tr>
+            <tr><td class="fname">/admin/api-clients/{id}</td><td>Revoke, or rotate (<code>{"action":"rotate"}</code>).</td></tr>
+            <tr><td class="fname">/admin/lookups/{type}</td><td>CRUD for districts/thanas/routes/service-centers (legacy data, see above).</td></tr>
+            <tr><td class="fname">/admin/stats</td><td>Dashboard counts by status + average resolution time.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <span>Affiniti Support | <code>wpsd/v1</code></span>
+    <span>Generated 2026-09-29</span>
+  </footer>
+</div>
+
+<script>
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.closest('pre');
+      var text = pre.textContent.replace(/^Copy/, '').trim();
+      var restore = btn.textContent;
+      function done(ok) {
+        btn.textContent = ok ? 'Copied' : 'Failed';
+        setTimeout(function () { btn.textContent = restore; }, 1400);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+      } else {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          done(true);
+        } catch (e) { done(false); }
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

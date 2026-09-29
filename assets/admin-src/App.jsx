@@ -58,9 +58,8 @@ export function App({ config }) {
       mobile: form.mobile,
       alternative_mobile: form.alternative_mobile || '',
       address: form.address,
-      product_id: Number(form.product_id),
       problem_description: form.problem_description,
-      barcode: form.barcode || '',
+      warranty_id: form.warranty_id || '',
       comments: form.comments || '',
       priority: form.priority,
     };
@@ -117,9 +116,5 @@ function TicketEditLoader({ client, id, onSaved, onCancel }) {
   }, [id]);
   if (error) return <p className="wpsd-error">{error}</p>;
   if (!ticket) return <p>Loading…</p>;
-  const initial = {
-    ...ticket,
-    product_id: String(ticket.product_id || ''),
-  };
-  return <TicketForm client={client} initial={initial} submitLabel="Save changes" onSaved={onSaved} onCancel={onCancel} />;
+  return <TicketForm client={client} initial={ticket} submitLabel="Save changes" onSaved={onSaved} onCancel={onCancel} />;
 }

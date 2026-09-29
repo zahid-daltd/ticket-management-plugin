@@ -57,10 +57,7 @@ class WPSD_Tickets {
 			'mobile'                 => $clean['mobile'],
 			'alternative_mobile'     => $clean['alternative_mobile'],
 			'address'                => $clean['address'],
-			'product_id'             => $clean['product_id'],
-			'brand_snapshot'         => $clean['brand_snapshot'],
-			'product_name_snapshot'  => $clean['product_name_snapshot'],
-			'barcode'                => $clean['barcode'],
+			'warranty_id'            => $clean['warranty_id'],
 			'problem_description'    => $clean['problem_description'],
 			'comments'               => $clean['comments'],
 			'status'                 => 'new',
@@ -68,7 +65,7 @@ class WPSD_Tickets {
 			'assigned_agent_id'      => null,
 			'source'                 => isset( $context['source'] ) ? $context['source'] : $clean['source'],
 		);
-		$formats = array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' );
+		$formats = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- ticket insert.
 		$ok = $wpdb->insert( $table, $data, $formats );
@@ -147,10 +144,7 @@ class WPSD_Tickets {
 		$table = WPSD_DB::table( 'tickets' );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- single-row fetch.
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM `{$table}` WHERE id = %d LIMIT 1", absint( $id ) ), ARRAY_A );
-		if ( ! $row ) {
-			return null;
-		}
-		return self::hydrate( $row );
+		return $row ? $row : null;
 	}
 
 	/**
@@ -164,31 +158,13 @@ class WPSD_Tickets {
 		$table = WPSD_DB::table( 'tickets' );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- single-row fetch.
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM `{$table}` WHERE ticket_number = %s LIMIT 1", $number ), ARRAY_A );
-		if ( ! $row ) {
-			return null;
-		}
-		return self::hydrate( $row );
-	}
-
-	/**
-	 * Attach human-readable labels to a ticket row.
-	 *
-	 * @param array $row Raw row.
-	 * @return array
-	 */
-	public static function hydrate( $row ) {
-		// Products are WooCommerce posts, not a plugin-owned table — the name
-		// captured at ticket creation/update time is the durable label (also
-		// survives the product being renamed or removed later). Problem is
-		// free text on the ticket row itself, no lookup needed.
-		$row['product_label'] = $row['product_name_snapshot'];
-		return $row;
+		return $row ? $row : null;
 	}
 
 	/**
 	 * Search/list tickets with filters + pagination. Default 20/page, max 100.
 	 *
-	 * @param array $args Filters: status, product_id, assigned_agent_id, search, page, per_page, orderby, order.
+	 * @param array $args Filters: status, assigned_agent_id, search, page, per_page, orderby, order.
 	 * @return array Array with items, total, page, per_page, total_pages.
 	 */
 	public static function search( $args ) {
@@ -202,11 +178,9 @@ class WPSD_Tickets {
 			$where[]  = 't.status = %s';
 			$params[] = sanitize_key( $args['status'] );
 		}
-		foreach ( array( 'product_id', 'assigned_agent_id' ) as $f ) {
-			if ( ! empty( $args[ $f ] ) ) {
-				$where[]  = "t.`{$f}` = %d";
-				$params[] = absint( $args[ $f ] );
-			}
+		if ( ! empty( $args['assigned_agent_id'] ) ) {
+			$where[]  = 't.assigned_agent_id = %d';
+			$params[] = absint( $args['assigned_agent_id'] );
 		}
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( sanitize_text_field( $args['search'] ) ) . '%';
@@ -237,9 +211,7 @@ class WPSD_Tickets {
 
 		$offset   = ( $page - 1 ) * $per_page;
 		$params_p = array_merge( $params, array( $per_page, $offset ) );
-		// Single query, no per-row hydration.
-		$list_sql = "SELECT t.*, t.product_name_snapshot AS product_label
-			FROM `{$table}` t
+		$list_sql = "SELECT t.* FROM `{$table}` t
 			WHERE {$where_sql} ORDER BY t.`{$orderby}` {$order} LIMIT %d OFFSET %d";
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared -- order/columns allow-listed; values prepared.
 		$rows = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_p ), ARRAY_A );
@@ -284,12 +256,9 @@ class WPSD_Tickets {
 			'mobile'                 => '%s',
 			'alternative_mobile'     => '%s',
 			'address'                => '%s',
-			'barcode'                => '%s',
+			'warranty_id'            => '%s',
 			'comments'               => '%s',
-			'product_id'             => '%d',
 			'problem_description'    => '%s',
-			'brand_snapshot'         => '%s',
-			'product_name_snapshot'  => '%s',
 		);
 		foreach ( $formats_by_col as $col => $fmt ) {
 			if ( array_key_exists( $col, $clean ) ) {
@@ -320,7 +289,7 @@ class WPSD_Tickets {
 
 		// Log a system reply summarizing the change.
 		$changes = array();
-		foreach ( array( 'status', 'priority', 'assigned_agent_id', 'customer_name', 'mobile', 'alternative_mobile', 'address', 'barcode', 'comments', 'product_id', 'problem_description' ) as $col ) {
+		foreach ( array( 'status', 'priority', 'assigned_agent_id', 'customer_name', 'mobile', 'alternative_mobile', 'address', 'warranty_id', 'comments', 'problem_description' ) as $col ) {
 			$b = isset( $before[ $col ] ) ? (string) $before[ $col ] : '';
 			$a = isset( $after[ $col ] ) ? (string) $after[ $col ] : '';
 			if ( $b !== $a ) {

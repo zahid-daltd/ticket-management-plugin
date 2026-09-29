@@ -100,12 +100,17 @@ class WPSD_Admin {
 
 		// Every submenu that renders the SPA (Dashboard, Tickets, API Keys) —
 		// Import/Settings uses render_settings_page() instead and is excluded.
+		// "wpsd-support" is both the top-level menu's own slug and the
+		// "Dashboard" submenu's slug (WP requires the first submenu to reuse
+		// the parent slug to rename its auto-created duplicate entry) — so a
+		// Dashboard click and a bare top-level click are indistinguishable
+		// server-side, and both deterministically land on the Dashboard tab.
 		$explicit_tab_by_page = array(
+			'wpsd-support'          => 'dashboard',
 			'wpsd-support-tickets'  => 'tickets',
 			'wpsd-support-api-keys' => 'api-clients',
 		);
-		$spa_pages = array_merge( array( 'wpsd-support' ), array_keys( $explicit_tab_by_page ) );
-		if ( ! in_array( $page, $spa_pages, true ) ) {
+		if ( ! isset( $explicit_tab_by_page[ $page ] ) ) {
 			return;
 		}
 		$js  = WPSD_PLUGIN_URL . 'assets/admin-dist/wpsd-admin.js';
@@ -118,10 +123,7 @@ class WPSD_Admin {
 		wp_enqueue_script( 'wpsd-admin', $js, array( 'wp-api-fetch', 'wp-i18n' ), $ver, true );
 		wp_set_script_translations( 'wpsd-admin', 'affiniti-wp-support', WPSD_PLUGIN_DIR . 'languages' );
 
-		// Only the two more-specific submenus force a tab — the generic
-		// Dashboard/top-level entry shares its slug with plain "open the
-		// plugin" clicks, so it leaves the in-app remembered tab alone.
-		$initial_tab = isset( $explicit_tab_by_page[ $page ] ) ? $explicit_tab_by_page[ $page ] : '';
+		$initial_tab = $explicit_tab_by_page[ $page ];
 
 		$config = array(
 			'restUrl'    => esc_url_raw( rest_url( WPSD_REST_NAMESPACE . '/' ) ),

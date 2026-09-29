@@ -134,10 +134,10 @@ class WPSD_DB {
 			route_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
 			service_center_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
 			address TEXT NOT NULL,
-			product_id BIGINT(20) UNSIGNED NOT NULL,
+			product_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
 			brand_snapshot VARCHAR(120) NOT NULL DEFAULT '',
 			product_name_snapshot VARCHAR(190) NOT NULL DEFAULT '',
-			barcode VARCHAR(120) DEFAULT NULL,
+			warranty_id VARCHAR(120) DEFAULT NULL,
 			problem_type_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
 			problem_description VARCHAR(500) NOT NULL DEFAULT '',
 			comments TEXT DEFAULT NULL,
@@ -212,7 +212,51 @@ class WPSD_DB {
 	 */
 	public static function maybe_upgrade() {
 		if ( get_option( 'wpsd_db_version' ) !== WPSD_DB_VERSION ) {
+			self::migrate_rename_barcode_column();
+			self::migrate_product_id_default();
 			self::create_tables();
+		}
+	}
+
+	/**
+	 * dbDelta() only adds/alters columns it recognizes by name — a genuine
+	 * rename (barcode -> warranty_id) needs an explicit ALTER first, or
+	 * dbDelta would just add a new warranty_id column and silently orphan
+	 * the old barcode one (and its data). Idempotent: no-ops once run.
+	 */
+	private static function migrate_rename_barcode_column() {
+		global $wpdb;
+		$table = self::table( 'tickets' );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- existence check before the rename below.
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return; // Fresh install — create_tables() will create warranty_id directly.
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- one-time column rename, gated by version.
+		$columns = $wpdb->get_col( "SHOW COLUMNS FROM `{$table}`", 0 );
+		if ( in_array( 'barcode', $columns, true ) && ! in_array( 'warranty_id', $columns, true ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- one-time column rename, gated by version.
+			$wpdb->query( "ALTER TABLE `{$table}` CHANGE COLUMN `barcode` `warranty_id` VARCHAR(120) DEFAULT NULL" );
+		}
+	}
+
+	/**
+	 * dbDelta() does not reliably alter a DEFAULT on an existing column, so
+	 * sites created before product_id became optional would keep it
+	 * NOT NULL with no default — breaking inserts (which no longer supply
+	 * it) under strict SQL mode. Explicit ALTER, idempotent via information_schema check.
+	 */
+	private static function migrate_product_id_default() {
+		global $wpdb;
+		$table = self::table( 'tickets' );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- existence check before the alter below.
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return; // Fresh install — create_tables() already includes the default.
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- one-time default fix, gated by version.
+		$column_default = $wpdb->get_var( $wpdb->prepare( 'SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s', $table, 'product_id' ) );
+		if ( null === $column_default ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- one-time default fix, gated by version.
+			$wpdb->query( "ALTER TABLE `{$table}` CHANGE COLUMN `product_id` `product_id` BIGINT(20) UNSIGNED NOT NULL DEFAULT 0" );
 		}
 	}
 
