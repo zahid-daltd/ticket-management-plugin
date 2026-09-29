@@ -623,10 +623,6 @@
   <span class="n">"error"</span>: { <span class="n">"code"</span>: <span class="s">"wpsd_validation_failed"</span>, <span class="n">"message"</span>: <span class="s">"Validation failed."</span> }
 }</pre>
       </div>
-      <div class="callout warn">
-        <span class="glyph">!</span>
-        <div><p><strong>Known quirk:</strong> <code>wpsd_validation_failed</code> responses currently arrive with HTTP status <code>200</code> instead of <code>400</code>, even though <code>success</code> is correctly <code>false</code>. Always branch on the <code>success</code> field, not the HTTP status code alone - this is on the fix list but not yet shipped.</p></div>
-      </div>
     </section>
 
     <section id="errors">
@@ -635,7 +631,7 @@
         <table>
           <thead><tr><th>Code</th><th>Status</th><th>Meaning</th></tr></thead>
           <tbody>
-            <tr><td><code>wpsd_validation_failed</code></td><td>200*</td><td>One or more fields failed validation - see <code>data.fields</code>. *See quirk above.</td></tr>
+            <tr><td><code>wpsd_validation_failed</code></td><td>400</td><td>One or more fields failed validation - see <code>data.fields</code>.</td></tr>
             <tr><td><code>wpsd_bad_nonce</code></td><td>403</td><td>Guest/web create was missing or had an invalid <code>wpsd_nonce</code>.</td></tr>
             <tr><td><code>wpsd_duplicate_ticket</code></td><td>409</td><td>Same mobile + same problem description submitted again within 10 minutes.</td></tr>
             <tr><td><code>wpsd_rate_limited</code></td><td>429</td><td>Too many requests - see <code>Retry-After</code> header.</td></tr>
@@ -836,7 +832,7 @@
 
     <section id="other-lookups" class="endpoint">
       <div class="endpoint-head"><span class="path">/lookups/products | /districts | /thanas | /routes | /service-centers | /problem-types</span></div>
-      <p class="endpoint-summary">Legacy reference data - WooCommerce product search plus Bangladesh administrative-area and problem-category lookups. These predate the current ticket form and are no longer required for ticket creation - <code>product_id</code>/<code>district_id</code>/<code>thana_id</code>/<code>route_id</code>/<code>service_center_id</code> are accepted for backward compatibility but always read back as <code>0</code> on new tickets. Left here for completeness; safe to ignore in a new integration.</p>
+      <p class="endpoint-summary">Legacy reference data - WooCommerce product search plus Bangladesh administrative-area and problem-category lookups. These predate the current ticket form and are no longer required for ticket creation - <code>product_id</code>/<code>district_id</code>/<code>thana_id</code>/<code>route_id</code>/<code>service_center_id</code> are accepted for backward compatibility but always read back as <code>0</code> on new tickets. Left here for completeness; safe to ignore in a new integration. <code>/problem-types?product_id=</code> still validates the id against WooCommerce and returns <code>wpsd_bad_product</code> (400) if it doesn't resolve to a published product.</p>
     </section>
 
     <hr class="rule" />
@@ -875,6 +871,7 @@
         <table>
           <thead><tr><th>Route</th><th>Purpose</th></tr></thead>
           <tbody>
+            <tr><td class="fname">GET /tickets/by-id/{id}</td><td>Single ticket by numeric id, with internal notes included in the reply thread - powers the admin ticket detail screen.</td></tr>
             <tr><td class="fname">/admin/api-clients</td><td>List / create API keys (the ones this doc uses).</td></tr>
             <tr><td class="fname">/admin/api-clients/{id}</td><td>Revoke, or rotate (<code>{"action":"rotate"}</code>).</td></tr>
             <tr><td class="fname">/admin/lookups/{type}</td><td>CRUD for districts/thanas/routes/service-centers (legacy data, see above).</td></tr>
@@ -888,7 +885,7 @@
 
   <footer>
     <span>Affiniti Support | <code>wpsd/v1</code></span>
-    <span>Generated 2026-09-29</span>
+    <span>Generated 2026-09-29 (rev 2: fixed validation-error HTTP status)</span>
   </footer>
 </div>
 

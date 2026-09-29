@@ -280,7 +280,11 @@ class WPSD_REST {
 	private function fail( $code, $message, $status = 400, $details = null ) {
 		$err = new WP_Error( $code, $message, array( 'status' => $status ) );
 		if ( null !== $details ) {
-			$err->add_data( $details, $code );
+			// add_data() overwrites (not merges) the data already stored for
+			// $code, so re-add 'status' here or the constructor's status is
+			// silently lost and WP's REST server falls back to a 200/500 default.
+			$data = is_array( $details ) ? array_merge( array( 'status' => $status ), $details ) : $details;
+			$err->add_data( $data, $code );
 		}
 		return $err;
 	}

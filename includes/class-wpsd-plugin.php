@@ -97,6 +97,7 @@ class WPSD_Plugin {
 			}
 			if ( is_array( $data ) && isset( $data['fields'] ) ) {
 				$details = $data;
+				unset( $details['status'] ); // Internal-only; the HTTP status line already carries it.
 			}
 			// Retry-After for 429s.
 			$headers = array();
